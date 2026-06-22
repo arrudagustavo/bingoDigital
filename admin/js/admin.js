@@ -1,0 +1,416 @@
+// admin.js
+
+// MÁGICA ANTI-DUPLICIDADE: Garante que os cliques não rodem dobrado
+if (!window.__ADMIN_JS_LOADED__) {
+    window.__ADMIN_JS_LOADED__ = true;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // DOM Elements
+        const roundNameInput = document.getElementById('admin-round-name');
+        const lastNumberEl = document.getElementById('admin-last-number');
+        const countEl = document.getElementById('admin-count');
+        const historyGrid = document.getElementById('admin-history');
+        const closedRoundsEl = document.getElementById('admin-closed-rounds');
+
+        const btnDraw = document.getElementById('btn-draw');
+        const btnDrawManual = document.getElementById('btn-draw-manual');
+        const inputManual = document.getElementById('input-manual');
+        const btnUndo = document.getElementById('btn-undo');
+        const btnCloseRound = document.getElementById('btn-close-round');
+        const btnNewSeries = document.getElementById('btn-new-series');
+        const btnExport = document.getElementById('btn-export');
+        const inputImport = document.getElementById('input-import');
+        const inputRangeMin = document.getElementById('input-range-min');
+        const inputRangeMax = document.getElementById('input-range-max');
+        const btnSaveRange = document.getElementById('btn-save-range');
+
+        // Modal System
+        const modalOverlay = document.getElementById('custom-modal-overlay');
+        const modalContainer = document.getElementById('modal-content-container');
+
+        function showModal(html) {
+            return new Promise((resolve) => {
+                modalContainer.innerHTML = html;
+                modalOverlay.classList.add('visible');
+
+                const btns = modalContainer.querySelectorAll('[data-action]');
+                btns.forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const action = btn.getAttribute('data-action');
+                        let value = null;
+                        const input = modalContainer.querySelector('input');
+                        if (input) value = input.value;
+
+                        modalOverlay.classList.remove('visible');
+                        resolve({ action, value });
+                    });
+                });
+            });
+        }
+
+        function showAlert(message) {
+            return showModal(`
+                <h3>Aviso</h3>
+                <p>${message}</p>
+                <div class="modal-buttons">
+                    <button class="btn btn-primary" data-action="ok">OK</button>
+                </div>
+            `);
+        }
+
+        function showConfirm(title, message) {
+            return showModal(`
+                <h3>${title}</h3>
+                <p>${message}</p>
+                <div class="modal-buttons">
+                    <button class="btn" data-action="cancel">Cancelar</button>
+                    <button class="btn btn-danger" data-action="confirm">Confirmar</button>
+                </div>
+            `);
+        }
+
+        function showPrompt(title, message, defaultValue = '') {
+            return showModal(`
+                <h3>${title}</h3>
+                <p>${message}</p>
+                <input type="text" class="form-control" value="${defaultValue}" autocomplete="off">
+                <div class="modal-buttons">
+                    <button class="btn" data-action="cancel">Cancelar</button>
+                    <button class="btn btn-primary" data-action="ok">Salvar</button>
+                </div>
+            `);
+        }
+
+        // Render Logic
+        function renderUI() {
+            const state = loadState();
+            const activeRound = state.rounds.find(r => r.endIndex === null) || state.rounds[state.rounds.length - 1];
+
+            if (document.activeElement !== roundNameInput) {
+                roundNameInput.value = activeRound.name;
+            }
+
+            if (document.activeElement !== inputRangeMin) inputRangeMin.value = state.range.min;
+            if (document.activeElement !== inputRangeMax) inputRangeMax.value = state.range.max;
+
+            const drawn = state.drawnNumbers;
+            const lastNumber = drawn.length > 0 ? drawn[drawn.length - 1] : null;
+
+            if (lastNumber !== null) {
+                lastNumberEl.textContent = lastNumber.toString().padStart(2, '0');
+            } else {
+                lastNumberEl.textContent = '--';
+            }
+
+            countEl.textContent = `${drawn.length} sorteados no total`;
+
+            // Render History Chips (Ordem cronológica)
+            historyGrid.innerHTML = '';
+            drawn.forEach((num, index) => {
+                const chip = document.createElement('div');
+                chip.className = 'history-chip';
+                chip.textContent = num.toString().padStart(2, '0');
+                chip.title = `Clique para editar o ${index + 1}º número sorteado`;
+
+                chip.addEventListener('click', async () => {
+                    const result = await showModal(`
+                        <h3>Número ${num} (Sorteio #${index + 1})</h3>
+                        <p>O que deseja fazer com este número?</p>
+                        <div style="margin-top:0.5rem;">
+                            <label style="font-size:0.85rem; color:var(--muted-color);">Substituir por:</label>
+                            <input type="number" class="form-control" placeholder="Novo número">
+                        </div>
+                        <div class="modal-buttons" style="flex-wrap: wrap;">
+                            <button class="btn" data-action="cancel">Cancelar</button>
+                            <button class="btn btn-danger" data-action="delete">Apagar</button>
+                            <button class="btn btn-primary" data-action="replace">Substituir</button>
+                        </div>
+                    `);
+
+                    if (result.action === 'replace') {
+                        if (!result.value) return;
+                        const novo = parseInt(result.value, 10);
+                        if (isNaN(novo) || novo < state.range.min || novo > state.range.max) {
+                            showAlert('Número inválido fora do intervalo.');
+                            return;
+                        }
+
+                        const st = loadState();
+                        if (st.drawnNumbers.includes(novo)) {
+                            showAlert('Este número já foi sorteado no jogo!');
+                            return;
+                        }
+
+                        const confirmRes = await showConfirm('Confirmação', `Confirma a troca de ${num} por ${novo}?`);
+                        if (confirmRes.action === 'confirm') {
+                            pushHistory(st);
+                            st.auditLog.push({ action: 'edit_number', old: num, new: novo, index, timestamp: Date.now() });
+                            st.drawnNumbers[index] = novo;
+                            saveState(st);
+                        }
+                    } else if (result.action === 'delete') {
+                        const confirmRes = await showConfirm('Atenção', `Deseja apagar definitivamente o número ${num}? Isso reindexará todo o histórico da TV.`);
+                        if (confirmRes.action === 'confirm') {
+                            const st = loadState();
+                            pushHistory(st);
+                            st.auditLog.push({ action: 'delete_number', number: num, index, timestamp: Date.now() });
+                            st.drawnNumbers.splice(index, 1);
+                            rebuildState(st);
+                            saveState(st);
+                        }
+                    }
+                });
+
+                historyGrid.appendChild(chip);
+            });
+
+            // Rodadas Fechadas
+            const closedRounds = state.rounds.filter(r => r.endIndex !== null);
+            if (closedRounds.length === 0) {
+                closedRoundsEl.innerHTML = '<div style="color: var(--muted-color); font-size: 0.9rem;">Nenhuma rodada fechada</div>';
+            } else {
+                closedRoundsEl.innerHTML = '';
+                [...closedRounds].reverse().forEach((r) => {
+                    const rIndex = state.rounds.indexOf(r);
+
+                    const prevRound = state.rounds[rIndex - 1];
+                    const startIndex = prevRound && prevRound.endIndex !== null ? prevRound.endIndex + 1 : 0;
+                    const totalInRound = Math.max(0, r.endIndex - startIndex + 1);
+
+                    const div = document.createElement('div');
+                    div.className = 'closed-round-item';
+                    div.innerHTML = `
+                        <div><strong>${r.name}</strong> <span style="color:var(--muted-color); font-size:0.85rem;">(${totalInRound} Nº.)</span></div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-edit-round" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" data-index="${rIndex}">Editar</button>
+                            <button class="btn btn-reopen-round" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" data-index="${rIndex}">Reabrir</button>
+                        </div>
+                    `;
+                    closedRoundsEl.appendChild(div);
+                });
+
+                closedRoundsEl.querySelectorAll('.btn-edit-round').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const rIndex = parseInt(e.target.getAttribute('data-index'));
+                        const st = loadState();
+                        const roundName = st.rounds[rIndex].name;
+
+                        const res = await showPrompt('Renomear Rodada', `Digite o novo nome para "${roundName}":`, roundName);
+                        if (res.action === 'ok' && res.value && res.value.trim() !== '' && res.value !== roundName) {
+                            pushHistory(st);
+                            const novoNome = res.value.trim().toUpperCase();
+                            st.auditLog.push({ action: 'rename_round', old: roundName, new: novoNome, roundIndex: rIndex, timestamp: Date.now() });
+                            st.rounds[rIndex].name = novoNome;
+                            saveState(st);
+                        }
+                    });
+                });
+
+                closedRoundsEl.querySelectorAll('.btn-reopen-round').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        const rIndex = parseInt(e.target.getAttribute('data-index'));
+                        const st = loadState();
+                        const roundName = st.rounds[rIndex].name;
+
+                        const confirmRes = await showConfirm('ATENÇÃO', `Reabrir a rodada "${roundName}"?\nTodas as rodadas que vieram depois dela serão APAGADAS e esta voltará a ser a rodada ativa da TV.`);
+                        if (confirmRes.action === 'confirm') {
+                            pushHistory(st);
+                            st.auditLog.push({ action: 'reopen_round', roundIndex: rIndex, roundName, timestamp: Date.now() });
+                            st.rounds.splice(rIndex + 1);
+                            st.rounds[rIndex].endIndex = null;
+                            st.rounds[rIndex].status = 'active';
+                            saveState(st);
+                        }
+                    });
+                });
+            }
+
+            const maxDraws = state.range.max - state.range.min + 1;
+            btnDraw.disabled = drawn.length >= maxDraws;
+            btnUndo.disabled = !canUndo();
+        }
+
+        renderUI();
+
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'bingo_state' || e.key === 'bingo_history') renderUI();
+        });
+        window.addEventListener('local-state-change', renderUI);
+        window.addEventListener('local-history-change', renderUI);
+
+        // Event Handlers
+        roundNameInput.addEventListener('change', (e) => {
+            const state = loadState();
+            const activeRound = state.rounds.find(r => r.endIndex === null);
+            if (activeRound && activeRound.name !== e.target.value.trim().toUpperCase()) {
+                pushHistory(state);
+                activeRound.name = e.target.value.trim().toUpperCase();
+                saveState(state);
+            }
+        });
+
+        btnDraw.addEventListener('click', () => {
+            const state = loadState();
+            const { min, max } = state.range;
+            const drawn = state.drawnNumbers;
+
+            const available = [];
+            for (let i = min; i <= max; i++) {
+                if (!drawn.includes(i)) available.push(i);
+            }
+
+            if (available.length === 0) {
+                showAlert('Todos os números já foram sorteados nesta série!');
+                return;
+            }
+
+            pushHistory(state);
+            const randomIndex = Math.floor(Math.random() * available.length);
+            const num = available[randomIndex];
+
+            state.drawnNumbers.push(num);
+            saveState(state);
+        });
+
+        // Inserção Manual
+        btnDrawManual.addEventListener('click', async () => {
+            const val = inputManual.value;
+            if (!val) return;
+            const num = parseInt(val, 10);
+
+            const state = loadState();
+            if (isNaN(num) || num < state.range.min || num > state.range.max) {
+                await showAlert('Número inválido fora do intervalo.');
+                return;
+            }
+
+            if (state.drawnNumbers.includes(num)) {
+                await showAlert('Este número já foi sorteado no jogo!');
+                return;
+            }
+
+            pushHistory(state);
+            state.drawnNumbers.push(num);
+            saveState(state);
+            inputManual.value = '';
+        });
+
+        inputManual.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') btnDrawManual.click();
+        });
+
+        btnUndo.addEventListener('click', async () => {
+            if (!canUndo()) return;
+            undoLastAction();
+        });
+
+        btnCloseRound.addEventListener('click', async () => {
+            const state = loadState();
+            const activeRound = state.rounds.find(r => r.endIndex === null);
+
+            const lastClosedRound = [...state.rounds].reverse().find(r => r.endIndex !== null && r !== activeRound);
+            const startIndex = lastClosedRound ? lastClosedRound.endIndex + 1 : 0;
+
+            if (state.drawnNumbers.length === startIndex) {
+                await showAlert('Não há novos números sorteados para fechar nesta rodada.');
+                return;
+            }
+
+            pushHistory(state);
+
+            activeRound.endIndex = state.drawnNumbers.length - 1;
+            activeRound.status = 'finished';
+
+            const totalInRound = activeRound.endIndex - startIndex + 1;
+            state.uiEvents.push({
+                type: 'round_closed',
+                roundName: activeRound.name,
+                count: totalInRound,
+                timestamp: Date.now()
+            });
+
+            state.rounds.push({
+                name: '',
+                endIndex: null,
+                status: 'active'
+            });
+
+            saveState(state);
+
+            roundNameInput.focus();
+            roundNameInput.select();
+        });
+
+        btnNewSeries.addEventListener('click', async () => {
+            const res = await showConfirm('ATENÇÃO', 'Isso irá zerar TODOS os números sorteados e histórico de rodadas. Deseja iniciar uma NOVA SÉRIE?');
+            if (res.action === 'confirm') {
+                resetState();
+            }
+        });
+
+        btnExport.addEventListener('click', () => {
+            const state = loadState();
+            const payload = JSON.stringify({
+                ...state,
+                exportTimestamp: Date.now(),
+                schemaVersion: '1.0'
+            }, null, 2);
+
+            const blob = new Blob([payload], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+
+            const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
+            a.download = `bingo-backup-${dateStr}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        });
+
+        inputImport.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (!data.drawnNumbers || !data.rounds) throw new Error("Formato inválido");
+
+                    const res = await showConfirm('Atenção', 'Importar backup substituirá todo o jogo atual. Continuar?');
+                    if (res.action === 'confirm') {
+                        pushHistory(loadState());
+
+                        delete data.exportTimestamp;
+                        delete data.schemaVersion;
+
+                        rebuildState(data);
+                        saveState(data);
+                        await showAlert("Backup importado com sucesso!");
+                    }
+                } catch (err) {
+                    await showAlert("Erro ao importar: Arquivo inválido ou corrompido.");
+                }
+                e.target.value = ''; // reset input
+            };
+            reader.readAsText(file);
+        });
+
+        btnSaveRange.addEventListener('click', async () => {
+            const min = parseInt(inputRangeMin.value, 10);
+            const max = parseInt(inputRangeMax.value, 10);
+
+            if (isNaN(min) || isNaN(max) || min >= max || min < 1) {
+                await showAlert("Range inválido. O mínimo deve ser menor que o máximo e maior que 0.");
+                return;
+            }
+
+            const state = loadState();
+            pushHistory(state);
+            state.range = { min, max };
+            state.auditLog.push({ action: 'change_range', min, max, timestamp: Date.now() });
+            saveState(state);
+            await showAlert(`Range atualizado: sorteio de ${min} até ${max}. A grade da TV foi reajustada.`);
+        });
+    });
+}
