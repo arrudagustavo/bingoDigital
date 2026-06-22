@@ -5,7 +5,6 @@ let lastAnimatedEvent = null;
 function renderTV() {
     const state = loadState();
 
-    // Travas de segurança: Se o estado não carregou direito, aborta para não quebrar a tela
     if (!state || !state.drawnNumbers || !state.rounds) return;
 
     const roundTitleEl = document.getElementById('tv-round-title');
@@ -16,7 +15,6 @@ function renderTV() {
     const tvCartelaContainer = document.getElementById('tv-cartela-container');
     const tvCartelaGrid = document.getElementById('tv-cartela-grid');
 
-    // Pega a rodada ativa com segurança
     const activeRound = state.rounds.find(r => r.endIndex === null) || state.rounds[state.rounds.length - 1] || { name: 'BINGO' };
     if (roundTitleEl) roundTitleEl.textContent = activeRound.name || 'BINGO';
 
@@ -24,14 +22,16 @@ function renderTV() {
     const lastNumber = drawn.length > 0 ? drawn[drawn.length - 1] : null;
 
     // ==========================================
-    // O PULO DO GATO: CONFERÊNCIA DA CARTELA
+    // CONTROLE DE CONFERÊNCIA EM TEMPO REAL (PULO DO GATO)
     // ==========================================
     if (state.currentCheckedCartela && state.currentCheckedCartela.status === 'display_active') {
 
-        if (currentNumberEl) currentNumberEl.style.display = 'none';
+        if (currentNumberEl) {
+            currentNumberEl.style.setProperty('display', 'none', 'important');
+        }
+
         if (tvCartelaContainer) {
-            tvCartelaContainer.classList.add('active');
-            tvCartelaContainer.style.display = 'flex'; // Força a exibição
+            tvCartelaContainer.style.setProperty('display', 'flex', 'important');
         }
 
         if (tvCartelaGrid) {
@@ -42,9 +42,9 @@ function renderTV() {
                 const cell = document.createElement('div');
                 cell.className = 'cartela-match-cell';
 
-                if (index === 12 && num === 0) { // O Quadrado FREE do meio
+                if (index === 12 && num === 0) {
                     cell.classList.add('free');
-                    cell.innerHTML = '<span style="font-size: 1rem;">FREE</span>';
+                    cell.innerHTML = '<span>FREE</span>';
                 } else if (num === 0) {
                     cell.textContent = '';
                 } else {
@@ -57,14 +57,12 @@ function renderTV() {
             });
         }
     } else {
-        // MODO NORMAL: MOSTRA NÚMERO
         if (tvCartelaContainer) {
-            tvCartelaContainer.classList.remove('active');
-            tvCartelaContainer.style.display = 'none'; // Esconde a cartela
+            tvCartelaContainer.style.setProperty('display', 'none', 'important');
         }
 
         if (currentNumberEl) {
-            currentNumberEl.style.display = 'block';
+            currentNumberEl.style.setProperty('display', 'block', 'important');
             if (lastNumber !== null) {
                 currentNumberEl.textContent = lastNumber.toString().padStart(2, '0');
                 currentNumberEl.classList.remove('empty');
@@ -76,7 +74,7 @@ function renderTV() {
     }
 
     // ==========================================
-    // GRADE DE NÚMEROS E RODADAS
+    // GRADE DE NÚMEROS E HISTÓRICO
     // ==========================================
     if (currentNumbersGrid) {
         currentNumbersGrid.innerHTML = '';
@@ -127,10 +125,8 @@ function renderTV() {
     }
 }
 
-// Rodar na abertura
 renderTV();
 
-// Escutadores de Sincronia
 window.addEventListener('storage', (e) => {
     if (e.key === 'bingo_state') renderTV();
 });

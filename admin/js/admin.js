@@ -1,11 +1,9 @@
 // admin.js
 
-// MÁGICA ANTI-DUPLICIDADE: Garante que os cliques não rodem dobrado
 if (!window.__ADMIN_JS_LOADED__) {
     window.__ADMIN_JS_LOADED__ = true;
 
     document.addEventListener('DOMContentLoaded', () => {
-        // DOM Elements
         const roundNameInput = document.getElementById('admin-round-name');
         const lastNumberEl = document.getElementById('admin-last-number');
         const countEl = document.getElementById('admin-count');
@@ -24,7 +22,6 @@ if (!window.__ADMIN_JS_LOADED__) {
         const inputRangeMax = document.getElementById('input-range-max');
         const btnSaveRange = document.getElementById('btn-save-range');
 
-        // Modal System
         const modalOverlay = document.getElementById('custom-modal-overlay');
         const modalContainer = document.getElementById('modal-content-container');
 
@@ -83,7 +80,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             `);
         }
 
-        // Render Logic
         function renderUI() {
             const state = loadState();
             const activeRound = state.rounds.find(r => r.endIndex === null) || state.rounds[state.rounds.length - 1];
@@ -106,6 +102,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                 chip.title = `Clique para editar o ${index + 1}º número sorteado`;
 
                 chip.addEventListener('click', async () => {
+                    const st = loadState();
                     const result = await showModal(`
                         <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Número ${num} <span style="font-size: 0.9rem; color: var(--muted-color); font-weight: normal;">(Sorteio #${index + 1})</span></h3>
                         <p style="margin-bottom: 1rem; color: var(--muted-color); font-size: 0.95rem;">O que deseja fazer com este número?</p>
@@ -123,22 +120,19 @@ if (!window.__ADMIN_JS_LOADED__) {
                     if (result.action === 'replace') {
                         if (!result.value) return;
                         const novo = parseInt(result.value, 10);
-                        if (isNaN(novo) || novo < state.range.min || novo > state.range.max) return showAlert('Número inválido fora do intervalo.');
+                        if (isNaN(novo) || novo < st.range.min || novo > st.range.max) return showAlert('Número inválido fora do intervalo.');
                         if (st.drawnNumbers.includes(novo)) return showAlert('Este número já foi sorteado no jogo!');
 
                         const confirmRes = await showConfirm('Confirmação', `Confirma a troca de ${num} por ${novo}?`);
                         if (confirmRes.action === 'confirm') {
                             pushHistory(st);
-                            st.auditLog.push({ action: 'edit_number', old: num, new: novo, index, timestamp: Date.now() });
                             st.drawnNumbers[index] = novo;
                             saveState(st);
                         }
                     } else if (result.action === 'delete') {
                         const confirmRes = await showConfirm('Atenção', `Deseja apagar definitivamente o número ${num}? Isso reindexará todo o histórico da TV.`);
                         if (confirmRes.action === 'confirm') {
-                            const st = loadState();
                             pushHistory(st);
-                            st.auditLog.push({ action: 'delete_number', number: num, index, timestamp: Date.now() });
                             st.drawnNumbers.splice(index, 1);
                             rebuildState(st);
                             saveState(st);
@@ -314,13 +308,12 @@ if (!window.__ADMIN_JS_LOADED__) {
             pushHistory(state);
             state.range = { min, max };
             saveState(state);
-            await showAlert(`Range atualizado: sorteio de ${min} até ${max}.`);
+            await showAlert(`Range updated: de ${min} até ${max}.`);
         });
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR + LÓGICA DE UX DO PULO DO GATO
+        // MÓDULO INJETADO: CÂMERA E OCR (O FATIADOR COM MAPA DE COORDENADAS GPS)
         // =========================================================================
-
         let cropperInstance = null;
 
         function setupOCREvents() {
@@ -334,7 +327,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             const btnCancelReview = document.getElementById('btn-cancel-review');
             const btnSubmitTv = document.getElementById('btn-submit-tv');
 
-            // Troca o nome do botão "Conferir na TV" para apenas "Conferir"
             if (btnSubmitTv) btnSubmitTv.textContent = "Conferir";
 
             if (!triggerBtn) return;
@@ -441,26 +433,22 @@ if (!window.__ADMIN_JS_LOADED__) {
                 }, 'image/png');
             });
 
-            // O LÓGICA MÁGICA: O QUE ACONTECE QUANDO CLICA EM "CONFERIR"
             btnSubmitTv.addEventListener('click', () => {
                 const state = loadState();
                 const drawn = state.drawnNumbers;
                 const inputs = document.querySelectorAll('.ocr-input-cell');
                 const cartelaNumeros = [];
 
-                // 1. Pinta a grade no celular e salva os números
                 inputs.forEach(input => {
                     const val = parseInt(input.value, 10);
                     cartelaNumeros.push(isNaN(val) ? 0 : val);
 
                     input.classList.remove('matched');
-                    // Se o número for maior que 0 e já foi sorteado no banco, pinta de verde
                     if (val > 0 && drawn.includes(val)) {
                         input.classList.add('matched');
                     }
                 });
 
-                // 2. Cria a lista de rodadas embaixo da cartela
                 let resultsDiv = document.getElementById('ocr-match-results');
                 if (!resultsDiv) {
                     resultsDiv = document.createElement('div');
@@ -481,7 +469,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                         startIndex = round.endIndex + 1;
                     }
                 });
-                // Rodada em andamento
                 if (startIndex < drawn.length) {
                     roundsHtml.push({ name: 'RODADA ATUAL (ABERTA)', numbers: drawn.slice(startIndex) });
                 }
@@ -499,7 +486,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                             const chip = document.createElement('span');
                             chip.className = 'match-number-chip';
                             if (cartelaNumeros.includes(num)) {
-                                chip.classList.add('matched'); // Fica verde se existir na cartela
+                                chip.classList.add('matched');
                             }
                             chip.textContent = num;
                             resultsDiv.appendChild(chip);
@@ -507,7 +494,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                     });
                 }
 
-                // 3. Atualiza o Firebase para a TV trocar o telão
                 state.currentCheckedCartela = {
                     numeros: cartelaNumeros,
                     timestamp: Date.now(),
@@ -515,27 +501,22 @@ if (!window.__ADMIN_JS_LOADED__) {
                 };
                 saveState(state);
 
-                // 4. Troca a interface dos botões
-                btnSubmitTv.style.display = 'none'; // Esconde o botão Conferir
-                btnCancelReview.textContent = 'Fechar Conferência'; // Muda o Cancelar
+                btnSubmitTv.style.display = 'none';
+                btnCancelReview.textContent = 'Fechar Conferência';
                 btnCancelReview.classList.add('btn-primary');
             });
 
-            // O QUE ACONTECE QUANDO CLICA EM "CANCELAR" OU "FECHAR CONFERÊNCIA"
             btnCancelReview.addEventListener('click', () => {
                 const state = loadState();
 
-                // Se a TV estava exibindo a cartela, manda ela voltar para o número gigante
                 if (state.currentCheckedCartela && state.currentCheckedCartela.status === 'display_active') {
                     state.currentCheckedCartela.status = 'closed';
                     saveState(state);
                 }
 
-                // Fecha a modal
                 modalReview.classList.remove('visible');
                 fileInput.value = '';
 
-                // Reseta tudo para o formato padrão para a próxima cartela
                 btnSubmitTv.style.display = 'block';
                 btnCancelReview.textContent = 'Cancelar';
                 btnCancelReview.classList.remove('btn-primary');
@@ -549,15 +530,17 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             try {
                 const worker = await Tesseract.createWorker({ logger: m => console.log(m) });
+
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
+
                 await worker.setParameters({ tessedit_pageseg_mode: '6' });
 
                 const { data } = await worker.recognize(objectURL);
                 await worker.terminate();
 
                 let matrixGrid = Array(5).fill(null).map(() => Array(5).fill(0));
-                matrixGrid[2][2] = 99; // FREE
+                matrixGrid[2][2] = 99;
 
                 data.words.forEach(word => {
                     let cleaned = word.text.toUpperCase()

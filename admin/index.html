@@ -11,7 +11,6 @@
     <meta name="theme-color" content="#0f172a">
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
-
     <link rel="stylesheet" href="../shared/css/style.css">
     <link rel="manifest" href="manifest.json">
     <style>
@@ -184,8 +183,7 @@
 
         <div class="history-panel">
             <h3 style="color: white; font-size: 1rem;">Números Sorteados</h3>
-            <div class="history-grid" id="admin-history">
-            </div>
+            <div class="history-grid" id="admin-history"></div>
         </div>
 
         <div class="closed-rounds-panel">
@@ -224,8 +222,7 @@
     </div>
 
     <div id="custom-modal-overlay" class="modal-overlay">
-        <div class="modal-content" id="modal-content-container">
-        </div>
+        <div class="modal-content" id="modal-content-container"></div>
     </div>
 
     <div id="modal-ocr-crop" class="modal-overlay">
@@ -247,16 +244,12 @@
         <div class="modal-content" style="max-width: 450px;">
             <h3>🔍 Double Check - Cartela</h3>
             <p>Ajuste algum número caso a câmera tenha lido errado:</p>
-
             <div id="ocr-loading-status" class="ocr-loading" style="display: none;">Lendo imagem... Aguarde.</div>
-
-            <div class="ocr-cartela-grid" id="ocr-inputs-container">
-            </div>
-
+            <div class="ocr-cartela-grid" id="ocr-inputs-container"></div>
             <div class="modal-buttons">
                 <button class="btn" id="btn-cancel-review">Cancelar</button>
                 <button class="btn btn-primary" id="btn-submit-tv"
-                    style="padding:0.5rem 1rem; font-size:1rem; background-color:#27ae60;">Conferir na TV</button>
+                    style="padding:0.5rem 1rem; font-size:1rem; background-color:#27ae60;">Conferir</button>
             </div>
         </div>
     </div>
@@ -265,7 +258,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
     <script src="../shared/js/state.js"></script>
     <script src="js/admin.js"></script>
 </body>
