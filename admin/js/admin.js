@@ -420,7 +420,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (WHITELIST CORRIGIDA + IMAGEM PURA)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM MODO "ATIRADOR DE ELITE" - PSM 11)
         // =========================================================================
 
         let cropperInstance = null;
@@ -492,7 +492,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                // Enviamos a imagem crua e em alta qualidade, sem o filtro Preto e Branco que estava atrapalhando
                 cropperInstance.getCroppedCanvas({ width: 800, height: 800 }).toBlob((blob) => {
                     modalCrop.classList.remove('visible');
                     cropperInstance.destroy();
@@ -534,7 +533,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             });
         }
 
-        // MOTOR ASYNC TESSERACT: FORÇANDO APENAS NÚMEROS E ESPAÇOS
         async function runTesseractOCR(imageBlob) {
             const objectURL = URL.createObjectURL(imageBlob);
 
@@ -546,13 +544,17 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // A MÁGICA CORRIGIDA: Permite os números, MAS TAMBÉM espaços e quebras de linha (\n \t)
+                // MÁGICA FINAL: PSM 11 = "Sparse Text". 
+                // Ignora as linhas da grade e busca bloquinhos de texto isolados.
                 await worker.setParameters({
-                    tessedit_char_whitelist: '0123456789 \n\t',
+                    tessedit_char_whitelist: '0123456789',
+                    tessedit_pageseg_mode: '11',
                 });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
+
+                console.log("Texto puro extraído:", text);
 
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
                 let foundNumbers = text.match(regexNumbers) || [];
@@ -623,8 +625,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             }
         }
 
-        // Ativa os cliques e eventos da Câmera isoladamente
         setupOCREvents();
-        // FIM DO MÓDULO DE OCR
     });
 }
