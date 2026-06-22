@@ -327,26 +327,28 @@ button:disabled {
         padding: 2rem !important;
         box-sizing: border-box !important;
     }
+}
 
-    /* =========================================
+/* <--- Fim do @media mobile! Tudo que está ABAIXO disso vale para telas grandes também */
+
+/* =========================================
    AJUSTES DE CORES DA TV (TEXTOS EM BRANCO)
    ========================================= */
 
-    /* Força o Nome da Rodada a ficar Branco Puro e em Negrito */
-    #tv-round-title {
-        color: #ffffff !important;
-        font-weight: 900 !important;
-        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
-        /* Dá um sombreado para destacar mais */
-    }
+/* Força o Nome da Rodada a ficar Branco Puro e em Negrito */
+#tv-round-title {
+    color: #ffffff !important;
+    font-weight: 900 !important;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
+    /* Dá um sombreado para destacar mais */
+}
 
-    /* Força os títulos "Números Sorteados" e "Rodadas Anteriores" a ficarem brancos */
-    /* (Pega qualquer título h2, h3 ou classe de título dentro da tela da TV) */
-    .tv-container h2,
-    .tv-container h3,
-    .section-title,
-    [id^="tv-"] h3 {
-        color: #ffffff !important;
-        opacity: 1 !important;
-    }
+/* Força os títulos "Números Sorteados" e "Rodadas Anteriores" a ficarem brancos */
+/* (Pega qualquer título h2, h3 ou classe de título dentro da tela da TV) */
+.tv-container h2,
+.tv-container h3,
+.section-title,
+[id^="tv-"] h3 {
+    color: #ffffff !important;
+    opacity: 1 !important;
 }
