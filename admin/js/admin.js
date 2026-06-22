@@ -83,6 +83,7 @@ if (!window.__ADMIN_JS_LOADED__) {
             `);
         }
 
+        // Render Logic
         function renderUI() {
             const state = loadState();
             const activeRound = state.rounds.find(r => r.endIndex === null) || state.rounds[state.rounds.length - 1];
@@ -317,7 +318,7 @@ if (!window.__ADMIN_JS_LOADED__) {
         });
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM "O FATIADOR DE CARTELAS")
+        // MÓDULO INJETADO: CÂMERA E OCR (O FATIADOR COM MAPA DE COORDENADAS GPS)
         // =========================================================================
 
         let cropperInstance = null;
@@ -363,7 +364,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                             aspectRatio: 1,
                             viewMode: 1,
                             dragMode: 'move',
-                            autoCropArea: 1, // Exige que o usuário corte EXATAMENTE na borda da grade
+                            autoCropArea: 1,
                             responsive: true,
                             restore: true,
                             ready: function () { this.cropper.zoomTo(1); }
@@ -382,35 +383,34 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                // Capturamos o recorte em alta resolução
                 const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 1000, height: 1000 });
 
-                // O FATIADOR: Cria um canvas branco gigante onde vamos colar as peças
+                // O FATIADOR
                 const cleanCanvas = document.createElement('canvas');
-                cleanCanvas.width = 1200;  // 5 colunas de 240px
-                cleanCanvas.height = 1200; // 5 linhas de 240px
+                cleanCanvas.width = 1200;  // 5x5 de células (cada uma ocupa 240x240 na tela nova)
+                cleanCanvas.height = 1200;
                 const cleanCtx = cleanCanvas.getContext('2d');
 
                 cleanCtx.fillStyle = '#FFFFFF';
                 cleanCtx.fillRect(0, 0, 1200, 1200);
 
-                const cellW = 1000 / 5; // Cada quadrado da foto tem 200px
+                const cellW = 1000 / 5; // 200px na foto original
                 const cellH = 1000 / 5;
 
-                // Laço matemático: fatia a foto em 25 pedaços
                 for (let row = 0; row < 5; row++) {
                     for (let col = 0; col < 5; col++) {
-                        if (row === 2 && col === 2) continue; // Pula o FREE do meio
+                        if (row === 2 && col === 2) continue; // Pula o meio (FREE)
 
-                        // Magia: Cortamos apenas o "miolo" (60%) do quadradinho, descartando as bordas e linhas
-                        const padX = cellW * 0.20;
-                        const padY = cellH * 0.20;
+                        // CORREÇÃO: Cortamos 10% da borda em vez de 20%, protegendo o seu número 5!
+                        const padX = cellW * 0.10;
+                        const padY = cellH * 0.10;
                         const srcX = (col * cellW) + padX;
                         const srcY = (row * cellH) + padY;
-                        const sWidth = cellW * 0.60;
-                        const sHeight = cellH * 0.60;
+                        const sWidth = cellW * 0.80; // 80% do miolo
+                        const sHeight = cellH * 0.80;
 
-                        // Colamos os miolos na nova lousa digital com espaços em branco enormes entre eles
+                        // Colamos os miolos na lousa digital.
+                        // Cada bloco mora num quadrado invisível de 240x240.
                         const destX = (col * 240) + 60;
                         const destY = (row * 240) + 60;
                         const dWidth = 120;
@@ -420,12 +420,12 @@ if (!window.__ADMIN_JS_LOADED__) {
                     }
                 }
 
-                // Aplica filtro de Contraste e Cinza APENAS nos miolos limpos
+                // Filtro para tirar a sombra rosa e deixar a tinta preta
                 const imgData = cleanCtx.getImageData(0, 0, 1200, 1200);
                 const data = imgData.data;
                 for (let i = 0; i < data.length; i += 4) {
                     let gray = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
-                    gray = ((gray - 128) * 1.5) + 128; // Contraste forte
+                    gray = ((gray - 128) * 1.5) + 128;
                     if (gray < 0) gray = 0;
                     if (gray > 255) gray = 255;
                     data[i] = data[i + 1] = data[i + 2] = gray;
@@ -441,7 +441,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                     document.getElementById('ocr-inputs-container').innerHTML = '';
 
                     runTesseractOCR(blob);
-                }, 'image/png'); // PNG sem perdas
+                }, 'image/png');
             });
 
             btnCancelReview.addEventListener('click', () => {
@@ -477,62 +477,68 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // PSM 6: Lê os miolos flutuantes como um bloco perfeito.
                 await worker.setParameters({ tessedit_pageseg_mode: '6' });
 
-                const { data: { text } } = await worker.recognize(objectURL);
+                // A IA DEVOLVE O TEXTO E A POSIÇÃO (Bounding Box) DO TEXTO NA TELA!
+                const { data } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                console.log("Texto Fatiado:", text);
+                // Montamos a grade de inputs zerada, livre da dança das cadeiras!
+                let matrixGrid = Array(5).fill(null).map(() => Array(5).fill(0));
+                matrixGrid[2][2] = 99; // FREE
 
-                let cleanedText = text
-                    .replace(/[OQDo]/g, '0')
-                    .replace(/[Il\|!i]/g, '1')
-                    .replace(/[Zz]/g, '2')
-                    .replace(/[A]/g, '4')
-                    .replace(/[Ss]/g, '5')
-                    .replace(/[Gg]/g, '6')
-                    .replace(/[Tt]/g, '7')
-                    .replace(/[B]/g, '8');
+                // Percorremos cada "palavra" que a IA encontrou na imagem
+                data.words.forEach(word => {
+                    // Tradutor flexível (removi o B->8 porque estava transformando seu 5 em 8)
+                    let cleaned = word.text.toUpperCase()
+                        .replace(/[OQDo]/g, '0')
+                        .replace(/[Il\|!i]/g, '1')
+                        .replace(/[Zz]/g, '2')
+                        .replace(/[A]/g, '4')
+                        .replace(/[Ss]/g, '5')
+                        .replace(/[Gg]/g, '6')
+                        .replace(/[Tt]/g, '7');
 
-                const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
-                let foundNumbers = cleanedText.match(regexNumbers) || [];
-                foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
+                    const numMatch = cleaned.match(/\b([1-9]|[1-6][0-9]|7[0-5])\b/);
 
-                generateOcrInputGrid(foundNumbers);
+                    if (numMatch) {
+                        const num = parseInt(numMatch[0], 10);
+
+                        // Pegamos o centro exato de onde esse número estava desenhado
+                        const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
+                        const centerY = (word.bbox.y0 + word.bbox.y1) / 2;
+
+                        // A nossa matemática perfeita revela a qual linha e coluna esse pixel pertence
+                        const col = Math.floor(centerX / 240);
+                        const row = Math.floor(centerY / 240);
+
+                        if (row >= 0 && row < 5 && col >= 0 && col < 5 && !(row === 2 && col === 2)) {
+                            // Validação extra de segurança: só insere se o número bater com a regra daquela coluna BINGO
+                            const minVal = col * 15 + 1;
+                            const maxVal = col * 15 + 15;
+                            if (num >= minVal && num <= maxVal) {
+                                matrixGrid[row][col] = num;
+                            }
+                        }
+                    }
+                });
+
+                // Agora só passamos a matriz exata pra tela desenhar os inputs
+                generateOcrInputGrid(matrixGrid);
 
             } catch (err) {
                 console.error("Erro no Worker OCR:", err);
-                generateOcrInputGrid([]);
+                // Matriz limpa em caso de falha severa
+                generateOcrInputGrid(Array(5).fill(null).map(() => Array(5).fill(0)));
             } finally {
                 document.getElementById('ocr-loading-status').style.display = 'none';
             }
         }
 
-        function generateOcrInputGrid(extractedNumbers) {
+        // A função de tela agora é passiva: só desenha o que o Tesseract mapeou pelo GPS
+        function generateOcrInputGrid(gridMatrix) {
             const container = document.getElementById('ocr-inputs-container');
             container.innerHTML = '';
-
-            const colRanges = [
-                { min: 1, max: 15 }, { min: 16, max: 30 }, { min: 31, max: 45 },
-                { min: 46, max: 60 }, { min: 61, max: 75 }
-            ];
-
-            let grid = Array(5).fill(null).map(() => Array(5).fill(0));
-
-            colRanges.forEach((range, colIndex) => {
-                const validForColumn = extractedNumbers.filter(n => n >= range.min && n <= range.max);
-
-                for (let rowIndex = 0; rowIndex < 5; rowIndex++) {
-                    if (colIndex === 2 && rowIndex === 2) {
-                        grid[rowIndex][colIndex] = 99;
-                        continue;
-                    }
-                    if (validForColumn[rowIndex]) {
-                        grid[rowIndex][colIndex] = validForColumn[rowIndex];
-                    }
-                }
-            });
 
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
@@ -542,7 +548,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                     input.pattern = "[0-9]*";
                     input.inputMode = "numeric";
 
-                    const val = grid[row][col];
+                    const val = gridMatrix[row][col];
 
                     if (val === 99) {
                         input.value = "0";
