@@ -107,7 +107,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             countEl.textContent = `${drawn.length} sorteados no total`;
 
-            // Render History Chips (Ordem cronológica)
+            // Render History Chips
             historyGrid.innerHTML = '';
             drawn.forEach((num, index) => {
                 const chip = document.createElement('div');
@@ -420,7 +420,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (VERIFICAÇÃO DE CARTELA) - FIX PARA IOS
+        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO PRETO E BRANCO E TRADUTOR)
         // =========================================================================
 
         let cropperInstance = null;
@@ -440,17 +440,14 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             if (!triggerBtn) return;
 
-            // Clicou no botão roxo -> abre seletor
             triggerBtn.addEventListener('click', () => fileInput.click());
 
-            // Arquivo carregado (Foto tirada ou Galeria)
             fileInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
 
                 const imageUrl = URL.createObjectURL(file);
 
-                // 1. Limpa o container para forçar recriação (ajuda muito o iOS a não engolir a div)
                 cropContainer.innerHTML = '';
 
                 const newImg = document.createElement('img');
@@ -458,17 +455,13 @@ if (!window.__ADMIN_JS_LOADED__) {
                 newImg.style.display = 'block';
                 newImg.style.maxWidth = '100%';
 
-                // 2. Força dimensões via CSS para o iOS enxergar a div
                 cropContainer.style.display = 'block';
                 cropContainer.style.width = '100%';
                 cropContainer.style.height = '350px';
 
                 cropContainer.appendChild(newImg);
-
-                // 3. Mostra a modal
                 modalCrop.classList.add('visible');
 
-                // 4. Aguarda a imagem preencher a tela antes de ligar o plugin
                 newImg.onload = () => {
                     setTimeout(() => {
                         if (cropperInstance) cropperInstance.destroy();
@@ -496,11 +489,32 @@ if (!window.__ADMIN_JS_LOADED__) {
                 fileInput.value = '';
             });
 
-            // Confirma o corte e invoca a IA
+            // NOVA LÓGICA: FILTRO MATADOR DE FUNDO ROSA
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                cropperInstance.getCroppedCanvas({ width: 600, height: 600 }).toBlob((blob) => {
+                const canvas = cropperInstance.getCroppedCanvas({ width: 600, height: 600 });
+                const ctx = canvas.getContext('2d');
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+
+                // Varrida pixel por pixel: Força a imagem a ficar Preto Puro ou Branco Puro
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    // Cálculo de luminosidade
+                    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+                    // Se for menor que 130 (é tinta preta), pinta de PRETO. Se for maior (fundo rosa), pinta de BRANCO.
+                    const color = luminance < 130 ? 0 : 255;
+
+                    data[i] = data[i + 1] = data[i + 2] = color;
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                canvas.toBlob((blob) => {
                     modalCrop.classList.remove('visible');
                     cropperInstance.destroy();
 
@@ -517,7 +531,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 fileInput.value = '';
             });
 
-            // Envia para o Firebase (Para a TV)
             btnSubmitTv.addEventListener('click', async () => {
                 const inputs = document.querySelectorAll('.ocr-input-cell');
                 const cartelaNumeros = [];
@@ -547,11 +560,21 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             Tesseract.recognize(
                 objectURL,
-                'por',
+                'eng', // MUDANÇA 1: Mudamos de Português para Inglês (foco melhor em números)
                 { logger: m => console.log(m) }
             ).then(({ data: { text } }) => {
+
+                // MUDANÇA 2: O TRADUTOR DE CONFUSÕES (Limpa os erros comuns de letras vs números)
+                let cleanText = text.toUpperCase();
+                cleanText = cleanText.replace(/[L|I|\|]/g, '1'); // L, I ou barra reta viram o número 1
+                cleanText = cleanText.replace(/O/g, '0');        // Letra O vira Zero
+                cleanText = cleanText.replace(/Z/g, '2');        // Letra Z vira 2
+                cleanText = cleanText.replace(/S/g, '5');        // Letra S vira 5
+                cleanText = cleanText.replace(/B/g, '8');        // Letra B vira 8
+                cleanText = cleanText.replace(/A/g, '4');        // Letra A vira 4
+
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
-                let foundNumbers = text.match(regexNumbers) || [];
+                let foundNumbers = cleanText.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
 
                 generateOcrInputGrid(foundNumbers);
