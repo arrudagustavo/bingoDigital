@@ -413,7 +413,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (REFINADO PARA SOMBRAS)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM PNG E FILTRO NATIVO DO BROWSER)
         // =========================================================================
 
         let cropperInstance = null;
@@ -485,19 +485,17 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                // Aumentamos a resolução base para o Tesseract ver os números maiores e mais nítidos
+                // Captura do recorte na resolução base
                 const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 1000, height: 1000 });
-                const ctx = croppedCanvas.getContext('2d');
-                const imgData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height);
-                const data = imgData.data;
 
-                // FILTRO: Apenas Escala de Cinza natural. 
-                // Sem contraste forçado. Deixamos a IA nativa do Tesseract calcular a sombra.
-                for (let i = 0; i < data.length; i += 4) {
-                    let gray = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
-                    data[i] = data[i + 1] = data[i + 2] = gray;
-                }
-                ctx.putImageData(imgData, 0, 0);
+                // Aplicamos o filtro direto na renderização nativa (mais rápido e inteligente que o loop manual de pixels)
+                // Isso cria uma imagem cinza com contraste forte, matando sombras mas mantendo os números bem pretos
+                const filteredCanvas = document.createElement('canvas');
+                filteredCanvas.width = 1000;
+                filteredCanvas.height = 1000;
+                const fCtx = filteredCanvas.getContext('2d');
+                fCtx.filter = 'grayscale(100%) contrast(150%)';
+                fCtx.drawImage(croppedCanvas, 0, 0);
 
                 // Aumentamos a MOLDURA BRANCA proporcionalmente
                 const paddedCanvas = document.createElement('canvas');
@@ -507,8 +505,9 @@ if (!window.__ADMIN_JS_LOADED__) {
 
                 paddedCtx.fillStyle = '#FFFFFF';
                 paddedCtx.fillRect(0, 0, 1200, 1200);
-                paddedCtx.drawImage(croppedCanvas, 100, 100);
+                paddedCtx.drawImage(filteredCanvas, 100, 100);
 
+                // A MÁGICA: Exportando como PNG puro, sem compressão destrutiva do JPEG!
                 paddedCanvas.toBlob((blob) => {
                     modalCrop.classList.remove('visible');
                     cropperInstance.destroy();
@@ -518,7 +517,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                     document.getElementById('ocr-inputs-container').innerHTML = '';
 
                     runTesseractOCR(blob);
-                }, 'image/jpeg', 0.95);
+                }, 'image/png'); // Format alterado aqui para estabilizar a leitura
             });
 
             btnCancelReview.addEventListener('click', () => {
@@ -561,7 +560,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // MÁGICA: PSM 11 
                 await worker.setParameters({
                     tessedit_pageseg_mode: '11',
                 });
@@ -569,7 +567,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                console.log("Texto extraído direto da IA:", text);
+                console.log("Texto extraído direto da IA (PNG):", text);
 
                 let cleanedText = text
                     .replace(/[OQDo]/g, '0')
