@@ -413,7 +413,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM O MELHOR DE TODAS AS TENTATIVAS)
+        // MÓDULO INJETADO: CÂMERA E OCR (REFINADO PARA SOMBRAS)
         // =========================================================================
 
         let cropperInstance = null;
@@ -485,34 +485,28 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 800, height: 800 });
+                // Aumentamos a resolução base para o Tesseract ver os números maiores e mais nítidos
+                const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 1000, height: 1000 });
                 const ctx = croppedCanvas.getContext('2d');
                 const imgData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height);
                 const data = imgData.data;
 
-                // 1. O FILTRO DE OURO (Da Tentativa 2)
-                // Escala de cinza com Contraste FORTE (1.5x) para matar o fundo rosa, mas preservar os números
+                // FILTRO: Apenas Escala de Cinza natural. 
+                // Sem contraste forçado. Deixamos a IA nativa do Tesseract calcular a sombra.
                 for (let i = 0; i < data.length; i += 4) {
                     let gray = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
-
-                    gray = ((gray - 128) * 1.5) + 128;
-
-                    if (gray < 0) gray = 0;
-                    if (gray > 255) gray = 255;
-
                     data[i] = data[i + 1] = data[i + 2] = gray;
                 }
                 ctx.putImageData(imgData, 0, 0);
 
-                // 2. A MOLDURA DE OURO (Da Tentativa 3)
-                // Impede que o Tesseract corte as bordas achando que é sujeira da lente
+                // Aumentamos a MOLDURA BRANCA proporcionalmente
                 const paddedCanvas = document.createElement('canvas');
-                paddedCanvas.width = 1000;
-                paddedCanvas.height = 1000;
+                paddedCanvas.width = 1200;
+                paddedCanvas.height = 1200;
                 const paddedCtx = paddedCanvas.getContext('2d');
 
                 paddedCtx.fillStyle = '#FFFFFF';
-                paddedCtx.fillRect(0, 0, 1000, 1000);
+                paddedCtx.fillRect(0, 0, 1200, 1200);
                 paddedCtx.drawImage(croppedCanvas, 100, 100);
 
                 paddedCanvas.toBlob((blob) => {
@@ -567,17 +561,16 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // 3. A CONFIGURAÇÃO DE OURO
-                // PSM 11 sem Whitelist. Ele vai ler a bagunça toda (letras e números)
+                // MÁGICA: PSM 11 
                 await worker.setParameters({
-                    tessedit_pageseg_mode: '11'
+                    tessedit_pageseg_mode: '11',
                 });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                // 4. O TRADUTOR DE OURO
-                // Se a IA achar que o 5 é um S, a gente conserta
+                console.log("Texto extraído direto da IA:", text);
+
                 let cleanedText = text
                     .replace(/[OQDo]/g, '0')
                     .replace(/[Il\|!i]/g, '1')
@@ -586,11 +579,8 @@ if (!window.__ADMIN_JS_LOADED__) {
                     .replace(/[Ss]/g, '5')
                     .replace(/[Gg]/g, '6')
                     .replace(/[Tt]/g, '7')
-                    .replace(/[B8]/g, '8');
+                    .replace(/[B]/g, '8');
 
-                console.log("Texto extraído da fusão de ouro:", cleanedText);
-
-                // Filtramos apenas números de 1 a 75
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
                 let foundNumbers = cleanedText.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
