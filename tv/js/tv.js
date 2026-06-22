@@ -8,6 +8,7 @@ function renderTV() {
 
     const roundTitleEl = document.getElementById('tv-round-title');
     const currentNumberEl = document.getElementById('tv-current-number');
+    const reviewCardEl = document.getElementById('tv-review-card');
     const currentNumbersGrid = document.getElementById('tv-current-numbers-grid');
     const closedRoundsContainer = document.getElementById('tv-closed-rounds');
 
@@ -16,16 +17,45 @@ function renderTV() {
     // 1. Update Title
     roundTitleEl.textContent = activeRound.name || 'BINGO';
 
-    // 2. Update Giant Number
+    // 2. Giant Number OR Checking Card
     const drawn = state.drawnNumbers;
     const lastNumber = drawn.length > 0 ? drawn[drawn.length - 1] : null;
+    const isChecking = state.checkingCard && state.checkingCard.length === 25;
 
-    if (lastNumber !== null) {
-        currentNumberEl.textContent = lastNumber.toString().padStart(2, '0');
-        currentNumberEl.classList.remove('empty');
+    if (isChecking) {
+        // Esconde o número e mostra a cartela
+        currentNumberEl.style.display = 'none';
+        reviewCardEl.classList.add('visible');
+        reviewCardEl.innerHTML = '';
+
+        state.checkingCard.forEach((num, index) => {
+            const cell = document.createElement('div');
+            cell.className = 'tv-card-cell';
+
+            // Espaço livre central (0)
+            if (index === 12 || num === 0) {
+                cell.textContent = '0';
+                cell.classList.add('matched');
+            } else {
+                cell.textContent = num;
+                if (drawn.includes(num)) {
+                    cell.classList.add('matched');
+                }
+            }
+            reviewCardEl.appendChild(cell);
+        });
     } else {
-        currentNumberEl.textContent = '--';
-        currentNumberEl.classList.add('empty');
+        // Estado normal: mostra o número, oculta a cartela
+        reviewCardEl.classList.remove('visible');
+        currentNumberEl.style.display = '';
+
+        if (lastNumber !== null) {
+            currentNumberEl.textContent = lastNumber.toString().padStart(2, '0');
+            currentNumberEl.classList.remove('empty');
+        } else {
+            currentNumberEl.textContent = '--';
+            currentNumberEl.classList.add('empty');
+        }
     }
 
     // 3. Update Current Numbers Grid (Main Board)
@@ -33,9 +63,19 @@ function renderTV() {
     drawn.forEach(num => {
         const div = document.createElement('div');
         div.className = 'small-number';
-        if (num === lastNumber) {
-            div.classList.add('highlight');
+
+        // Regra de cores do TV.png (destaque em verde se a cartela estiver aberta)
+        if (isChecking) {
+            if (state.checkingCard.includes(num)) {
+                div.classList.add('card-matched');
+            }
+        } else {
+            // Se o jogo está normal, destaca apenas o último sorteado
+            if (num === lastNumber) {
+                div.classList.add('highlight');
+            }
         }
+
         div.textContent = num.toString().padStart(2, '0');
         currentNumbersGrid.appendChild(div);
     });

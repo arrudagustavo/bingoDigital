@@ -4,6 +4,14 @@ if (!window.__ADMIN_JS_LOADED__) {
     window.__ADMIN_JS_LOADED__ = true;
 
     document.addEventListener('DOMContentLoaded', () => {
+
+        // Zera qualquer conferência que tenha ficado travada num refresh acidental
+        const initSt = loadState();
+        if (initSt.checkingCard !== null) {
+            initSt.checkingCard = null;
+            saveState(initSt);
+        }
+
         // DOM Elements
         const roundNameInput = document.getElementById('admin-round-name');
         const lastNumberEl = document.getElementById('admin-last-number');
@@ -26,7 +34,7 @@ if (!window.__ADMIN_JS_LOADED__) {
         const modalOverlay = document.getElementById('custom-modal-overlay');
         const modalContainer = document.getElementById('modal-content-container');
 
-        // Modais Nativas (Alert, Confirm, Prompt)
+        // Modais Nativas
         function showModal(html) {
             return new Promise((resolve) => {
                 modalContainer.innerHTML = html;
@@ -364,14 +372,11 @@ if (!window.__ADMIN_JS_LOADED__) {
                     setTimeout(() => {
                         if (cropperInstance) cropperInstance.destroy();
 
-                        // INICIALIZAÇÃO CORRIGIDA DO CROPPER
-                        // Sem a linha que causava o "mega zoom" forçado (zoomTo(1)).
-                        // viewMode: 1 restringe a área de crop ao tamanho visível no canvas.
                         cropperInstance = new Cropper(newImg, {
                             aspectRatio: 1,
                             viewMode: 1,
                             dragMode: 'move',
-                            autoCropArea: 0.95, // Deixa uma bordinha de respiro, mas ajusta a imagem inteira
+                            autoCropArea: 0.95,
                             responsive: true,
                             restore: true
                         });
@@ -462,6 +467,10 @@ if (!window.__ADMIN_JS_LOADED__) {
                     }
                 });
 
+                // NOVO: SALVA A CARTELA NO ESTADO E ENVIA PARA A TV
+                state.checkingCard = cartelaNumeros;
+                saveState(state); // Dispara o Firebase e atualiza a TV na hora!
+
                 let resultsDiv = document.getElementById('ocr-match-results');
                 if (!resultsDiv) {
                     resultsDiv = document.createElement('div');
@@ -506,9 +515,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                     });
                 }
 
-                // ==========================================
-                // AJUSTE DE UX: Botão FECHAR menor e Vermelho
-                // ==========================================
                 btnSubmitTv.style.display = 'none';
                 btnCancelReview.textContent = 'FECHAR';
                 btnCancelReview.classList.add('btn-danger');
@@ -522,9 +528,11 @@ if (!window.__ADMIN_JS_LOADED__) {
                 document.body.classList.remove('no-scroll');
                 fileInput.value = '';
 
-                // ==========================================
-                // RESET: Volta o botão ao normal para a próxima foto
-                // ==========================================
+                // NOVO: APAGA A CARTELA DO ESTADO, FAZENDO A TV VOLTAR AO NORMAL
+                const state = loadState();
+                state.checkingCard = null;
+                saveState(state);
+
                 btnSubmitTv.style.display = 'block';
                 btnCancelReview.textContent = 'Cancelar';
                 btnCancelReview.classList.remove('btn-danger');
