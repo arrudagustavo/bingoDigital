@@ -449,25 +449,27 @@ if (!window.__ADMIN_JS_LOADED__) {
                 const file = e.target.files[0];
                 if (!file) return;
 
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    // 1. Mostra a janela preta primeiro
-                    modalCrop.classList.add('visible');
+                // TRUQUE PARA iPHONE: Cria um link temporário da imagem direto do armazenamento (Zero travamento de memória)
+                const imageUrl = URL.createObjectURL(file);
 
-                    // 2. Avisa o sistema: "Só ligue o Cropper quando a imagem estiver 100% carregada na tela"
-                    cropImgElement.onload = () => {
+                // 1. Exibe a janela modal
+                modalCrop.classList.add('visible');
+
+                // 2. Avisa o sistema para ligar o Cropper assim que a foto piscar na tela
+                cropImgElement.onload = () => {
+                    // Delay de 50ms para dar tempo da animação do CSS do iPhone terminar
+                    setTimeout(() => {
                         if (cropperInstance) cropperInstance.destroy();
                         cropperInstance = new Cropper(cropImgElement, {
                             aspectRatio: 1,
                             viewMode: 1,
                             autoCropArea: 0.8
                         });
-                    };
-
-                    // 3. Joga a foto gigante do iPhone na tag <img> (isso ativa a regra acima)
-                    cropImgElement.src = event.target.result;
+                    }, 50);
                 };
-                reader.readAsDataURL(file);
+
+                // 3. Joga a foto no HTML
+                cropImgElement.src = imageUrl;
             });
 
             btnCancelCrop.addEventListener('click', () => {
