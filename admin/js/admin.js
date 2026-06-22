@@ -48,7 +48,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             });
         }
 
-        // Modais Reestilizadas com UX aprimorada
         function showAlert(message) {
             return showModal(`
                 <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Aviso</h3>
@@ -107,7 +106,6 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             countEl.textContent = `${drawn.length} sorteados no total`;
 
-            // Render History Chips
             historyGrid.innerHTML = '';
             drawn.forEach((num, index) => {
                 const chip = document.createElement('div');
@@ -169,7 +167,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 historyGrid.appendChild(chip);
             });
 
-            // Rodadas Fechadas
             const closedRounds = state.rounds.filter(r => r.endIndex !== null);
             if (closedRounds.length === 0) {
                 closedRoundsEl.innerHTML = '<div style="color: var(--muted-color); font-size: 0.9rem;">Nenhuma rodada fechada</div>';
@@ -243,7 +240,6 @@ if (!window.__ADMIN_JS_LOADED__) {
         window.addEventListener('local-state-change', renderUI);
         window.addEventListener('local-history-change', renderUI);
 
-        // Event Handlers
         roundNameInput.addEventListener('change', (e) => {
             const state = loadState();
             const activeRound = state.rounds.find(r => r.endIndex === null);
@@ -277,7 +273,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             saveState(state);
         });
 
-        // Inserção Manual
         btnDrawManual.addEventListener('click', async () => {
             const val = inputManual.value;
             if (!val) return;
@@ -385,10 +380,8 @@ if (!window.__ADMIN_JS_LOADED__) {
                     const res = await showConfirm('Atenção', 'Importar backup substituirá todo o jogo atual. Continuar?');
                     if (res.action === 'confirm') {
                         pushHistory(loadState());
-
                         delete data.exportTimestamp;
                         delete data.schemaVersion;
-
                         rebuildState(data);
                         saveState(data);
                         await showAlert("Backup importado com sucesso!");
@@ -396,7 +389,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                 } catch (err) {
                     await showAlert("Erro ao importar: Arquivo inválido ou corrompido.");
                 }
-                e.target.value = ''; // reset input
+                e.target.value = '';
             };
             reader.readAsText(file);
         });
@@ -420,7 +413,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO BALANCEADO E TRADUTOR REGEX)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM PADDING BRANCO E THRESHOLD INTELIGENTE)
         // =========================================================================
 
         let cropperInstance = null;
@@ -470,7 +463,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                             aspectRatio: 1,
                             viewMode: 1,
                             dragMode: 'move',
-                            autoCropArea: 0.9,
+                            autoCropArea: 0.95, // Recorta mais perto da borda
                             responsive: true,
                             restore: true,
                             ready: function () {
@@ -492,33 +485,40 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                const canvas = cropperInstance.getCroppedCanvas({ width: 800, height: 800 });
-                const ctx = canvas.getContext('2d');
-                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                // 1. Pegamos a imagem recortada com boa resolução
+                const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 800, height: 800 });
+                const ctx = croppedCanvas.getContext('2d');
+                const imgData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height);
                 const data = imgData.data;
 
-                // NOVO FILTRO FOTOGRÁFICO: Escala de Cinza + Alto Contraste 
-                // Suaviza o fundo rosa sem destruir os números pretos
+                // 2. FILTRO THRESHOLD: Transforma em Preto e Branco Absoluto, mas de forma calibrada.
+                // Isso mata a grade do bingo e deixa só os números nítidos.
                 for (let i = 0; i < data.length; i += 4) {
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
 
-                    // Escala de cinza padrão
-                    let gray = (r * 0.299) + (g * 0.587) + (b * 0.114);
+                    const luminance = (r * 0.299) + (g * 0.587) + (b * 0.114);
+                    // O valor 140 é o "ponto de corte" ideal para fundos coloridos impressos
+                    const color = luminance < 140 ? 0 : 255;
 
-                    // Aumenta o contraste (Fator 1.5)
-                    gray = ((gray - 128) * 1.5) + 128;
-
-                    // Trava nos limites de cor
-                    if (gray < 0) gray = 0;
-                    if (gray > 255) gray = 255;
-
-                    data[i] = data[i + 1] = data[i + 2] = gray;
+                    data[i] = data[i + 1] = data[i + 2] = color;
                 }
                 ctx.putImageData(imgData, 0, 0);
 
-                canvas.toBlob((blob) => {
+                // 3. O SEGREDO DO "RESPIRO" (PADDING BRANCO):
+                // O Tesseract ignora números que encostam na borda. 
+                // Então nós criamos um quadro branco gigante de 1000x1000 e colamos a imagem de 800x800 no meio!
+                const paddedCanvas = document.createElement('canvas');
+                paddedCanvas.width = 1000;
+                paddedCanvas.height = 1000;
+                const paddedCtx = paddedCanvas.getContext('2d');
+
+                paddedCtx.fillStyle = '#FFFFFF'; // Fundo totalmente branco
+                paddedCtx.fillRect(0, 0, 1000, 1000);
+                paddedCtx.drawImage(croppedCanvas, 100, 100); // Cola a imagem deixando 100px de margem em tudo
+
+                paddedCanvas.toBlob((blob) => {
                     modalCrop.classList.remove('visible');
                     cropperInstance.destroy();
 
@@ -570,16 +570,17 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // MODO PSM 6: Lê como um bloco uniforme (não perde a matriz da tabela)
-                // Removemos a Whitelist para impedir que ele leia a grade como números 1 ou 7
+                // MODO PSM 11 (Sparse Text): O atirador de elite ativado.
+                // Como agora a imagem tem uma borda branca gigante e a grade foi enfraquecida pelo filtro Preto e Branco,
+                // ele vai achar todos os números boiando na tela.
                 await worker.setParameters({
-                    tessedit_pageseg_mode: '6',
+                    tessedit_pageseg_mode: '11',
                 });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                // TRADUTOR REGEX: Conserta as confusões clássicas de letras que o Tesseract faz
+                // TRADUTOR REGEX: Caso a binarização tenha borrado um número e ele pareça uma letra, nós consertamos.
                 let cleanedText = text
                     .replace(/[OQDo]/g, '0')
                     .replace(/[Il\|!]/g, '1')
@@ -590,9 +591,8 @@ if (!window.__ADMIN_JS_LOADED__) {
                     .replace(/[T]/g, '7')
                     .replace(/[B]/g, '8');
 
-                console.log("Texto extraído e limpo:", cleanedText);
+                console.log("Texto extraído com margem branca e filtro P&B:", cleanedText);
 
-                // Pesca qualquer número de 1 a 75 na bagunça que sobrar
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
                 let foundNumbers = cleanedText.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
