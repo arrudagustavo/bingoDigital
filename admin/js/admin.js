@@ -420,7 +420,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO E "WHITELIST" 100% NUMÉRICA)
+        // MÓDULO INJETADO: CÂMERA E OCR (WHITELIST CORRIGIDA + IMAGEM PURA)
         // =========================================================================
 
         let cropperInstance = null;
@@ -489,29 +489,11 @@ if (!window.__ADMIN_JS_LOADED__) {
                 fileInput.value = '';
             });
 
-            // FILTRO MATADOR DE FUNDO ROSA
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                const canvas = cropperInstance.getCroppedCanvas({ width: 600, height: 600 });
-                const ctx = canvas.getContext('2d');
-                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imgData.data;
-
-                // Força Preto e Branco puro
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-
-                    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                    const color = luminance < 130 ? 0 : 255;
-
-                    data[i] = data[i + 1] = data[i + 2] = color;
-                }
-                ctx.putImageData(imgData, 0, 0);
-
-                canvas.toBlob((blob) => {
+                // Enviamos a imagem crua e em alta qualidade, sem o filtro Preto e Branco que estava atrapalhando
+                cropperInstance.getCroppedCanvas({ width: 800, height: 800 }).toBlob((blob) => {
                     modalCrop.classList.remove('visible');
                     cropperInstance.destroy();
 
@@ -519,9 +501,8 @@ if (!window.__ADMIN_JS_LOADED__) {
                     document.getElementById('ocr-loading-status').style.display = 'block';
                     document.getElementById('ocr-inputs-container').innerHTML = '';
 
-                    // Inicia o motor Tesseract Numérico
                     runTesseractOCR(blob);
-                }, 'image/jpeg', 0.9);
+                }, 'image/jpeg', 0.95);
             });
 
             btnCancelReview.addEventListener('click', () => {
@@ -553,29 +534,24 @@ if (!window.__ADMIN_JS_LOADED__) {
             });
         }
 
-        // MOTOR ASYNC TESSERACT: FORÇANDO APENAS NÚMEROS
+        // MOTOR ASYNC TESSERACT: FORÇANDO APENAS NÚMEROS E ESPAÇOS
         async function runTesseractOCR(imageBlob) {
             const objectURL = URL.createObjectURL(imageBlob);
 
             try {
-                // Instancia o Worker Oficial do Tesseract
                 const worker = await Tesseract.createWorker({
-                    logger: m => console.log(m) // Mostra o progresso no console do navegador
+                    logger: m => console.log(m)
                 });
 
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // === A MÁGICA AQUI: PROÍBE O OCR DE LER QUALQUER LETRA ===
+                // A MÁGICA CORRIGIDA: Permite os números, MAS TAMBÉM espaços e quebras de linha (\n \t)
                 await worker.setParameters({
-                    tessedit_char_whitelist: '0123456789',
+                    tessedit_char_whitelist: '0123456789 \n\t',
                 });
 
-                // Lê a imagem
                 const { data: { text } } = await worker.recognize(objectURL);
-                console.log("Texto puro extraído da Whitelist:", text);
-
-                // Desliga o worker para liberar a memória do celular
                 await worker.terminate();
 
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
