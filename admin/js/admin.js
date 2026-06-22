@@ -83,27 +83,18 @@ if (!window.__ADMIN_JS_LOADED__) {
             `);
         }
 
-        // Render Logic
         function renderUI() {
             const state = loadState();
             const activeRound = state.rounds.find(r => r.endIndex === null) || state.rounds[state.rounds.length - 1];
 
-            if (document.activeElement !== roundNameInput) {
-                roundNameInput.value = activeRound.name;
-            }
-
+            if (document.activeElement !== roundNameInput) roundNameInput.value = activeRound.name;
             if (document.activeElement !== inputRangeMin) inputRangeMin.value = state.range.min;
             if (document.activeElement !== inputRangeMax) inputRangeMax.value = state.range.max;
 
             const drawn = state.drawnNumbers;
             const lastNumber = drawn.length > 0 ? drawn[drawn.length - 1] : null;
 
-            if (lastNumber !== null) {
-                lastNumberEl.textContent = lastNumber.toString().padStart(2, '0');
-            } else {
-                lastNumberEl.textContent = '--';
-            }
-
+            lastNumberEl.textContent = lastNumber !== null ? lastNumber.toString().padStart(2, '0') : '--';
             countEl.textContent = `${drawn.length} sorteados no total`;
 
             historyGrid.innerHTML = '';
@@ -117,12 +108,10 @@ if (!window.__ADMIN_JS_LOADED__) {
                     const result = await showModal(`
                         <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Número ${num} <span style="font-size: 0.9rem; color: var(--muted-color); font-weight: normal;">(Sorteio #${index + 1})</span></h3>
                         <p style="margin-bottom: 1rem; color: var(--muted-color); font-size: 0.95rem;">O que deseja fazer com este número?</p>
-                        
                         <div style="background-color: var(--bg-color); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
                             <label style="display: block; font-size: 0.85rem; color: var(--muted-color); margin-bottom: 0.5rem;">Substituir por um novo número:</label>
                             <input type="number" class="form-control" placeholder="Ex: 42" style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--panel-bg); color: var(--text-color); font-size: 1.1rem; outline: none; text-align: center;">
                         </div>
-
                         <div class="modal-buttons" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
                             <button class="btn" data-action="cancel" style="padding: 0.75rem 0.5rem; font-size: 0.9rem;">Cancelar</button>
                             <button class="btn btn-danger" data-action="delete" style="padding: 0.75rem 0.5rem; font-size: 0.9rem;">Apagar</button>
@@ -133,16 +122,8 @@ if (!window.__ADMIN_JS_LOADED__) {
                     if (result.action === 'replace') {
                         if (!result.value) return;
                         const novo = parseInt(result.value, 10);
-                        if (isNaN(novo) || novo < state.range.min || novo > state.range.max) {
-                            showAlert('Número inválido fora do intervalo.');
-                            return;
-                        }
-
-                        const st = loadState();
-                        if (st.drawnNumbers.includes(novo)) {
-                            showAlert('Este número já foi sorteado no jogo!');
-                            return;
-                        }
+                        if (isNaN(novo) || novo < state.range.min || novo > state.range.max) return showAlert('Número inválido fora do intervalo.');
+                        if (st.drawnNumbers.includes(novo)) return showAlert('Este número já foi sorteado no jogo!');
 
                         const confirmRes = await showConfirm('Confirmação', `Confirma a troca de ${num} por ${novo}?`);
                         if (confirmRes.action === 'confirm') {
@@ -163,7 +144,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                         }
                     }
                 });
-
                 historyGrid.appendChild(chip);
             });
 
@@ -174,7 +154,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 closedRoundsEl.innerHTML = '';
                 [...closedRounds].reverse().forEach((r) => {
                     const rIndex = state.rounds.indexOf(r);
-
                     const prevRound = state.rounds[rIndex - 1];
                     const startIndex = prevRound && prevRound.endIndex !== null ? prevRound.endIndex + 1 : 0;
                     const totalInRound = Math.max(0, r.endIndex - startIndex + 1);
@@ -195,14 +174,10 @@ if (!window.__ADMIN_JS_LOADED__) {
                     btn.addEventListener('click', async (e) => {
                         const rIndex = parseInt(e.target.getAttribute('data-index'));
                         const st = loadState();
-                        const roundName = st.rounds[rIndex].name;
-
-                        const res = await showPrompt('Renomear Rodada', `Digite o novo nome para "${roundName}":`, roundName);
-                        if (res.action === 'ok' && res.value && res.value.trim() !== '' && res.value !== roundName) {
+                        const res = await showPrompt('Renomear Rodada', `Digite o novo nome para "${st.rounds[rIndex].name}":`, st.rounds[rIndex].name);
+                        if (res.action === 'ok' && res.value && res.value.trim() !== '' && res.value !== st.rounds[rIndex].name) {
                             pushHistory(st);
-                            const novoNome = res.value.trim().toUpperCase();
-                            st.auditLog.push({ action: 'rename_round', old: roundName, new: novoNome, roundIndex: rIndex, timestamp: Date.now() });
-                            st.rounds[rIndex].name = novoNome;
+                            st.rounds[rIndex].name = res.value.trim().toUpperCase();
                             saveState(st);
                         }
                     });
@@ -212,12 +187,9 @@ if (!window.__ADMIN_JS_LOADED__) {
                     btn.addEventListener('click', async (e) => {
                         const rIndex = parseInt(e.target.getAttribute('data-index'));
                         const st = loadState();
-                        const roundName = st.rounds[rIndex].name;
-
-                        const confirmRes = await showConfirm('ATENÇÃO', `Reabrir a rodada "${roundName}"?\nTodas as rodadas que vieram depois dela serão APAGADAS e esta voltará a ser a rodada ativa da TV.`);
+                        const confirmRes = await showConfirm('ATENÇÃO', `Reabrir a rodada "${st.rounds[rIndex].name}"?\nTodas as rodadas que vieram depois dela serão APAGADAS e esta voltará a ser a rodada ativa da TV.`);
                         if (confirmRes.action === 'confirm') {
                             pushHistory(st);
-                            st.auditLog.push({ action: 'reopen_round', roundIndex: rIndex, roundName, timestamp: Date.now() });
                             st.rounds.splice(rIndex + 1);
                             st.rounds[rIndex].endIndex = null;
                             st.rounds[rIndex].status = 'active';
@@ -227,16 +199,13 @@ if (!window.__ADMIN_JS_LOADED__) {
                 });
             }
 
-            const maxDraws = state.range.max - state.range.min + 1;
-            btnDraw.disabled = drawn.length >= maxDraws;
+            btnDraw.disabled = drawn.length >= (state.range.max - state.range.min + 1);
             btnUndo.disabled = !canUndo();
         }
 
         renderUI();
 
-        window.addEventListener('storage', (e) => {
-            if (e.key === 'bingo_state' || e.key === 'bingo_history') renderUI();
-        });
+        window.addEventListener('storage', (e) => { if (e.key === 'bingo_state' || e.key === 'bingo_history') renderUI(); });
         window.addEventListener('local-state-change', renderUI);
         window.addEventListener('local-history-change', renderUI);
 
@@ -252,24 +221,14 @@ if (!window.__ADMIN_JS_LOADED__) {
 
         btnDraw.addEventListener('click', () => {
             const state = loadState();
-            const { min, max } = state.range;
-            const drawn = state.drawnNumbers;
-
             const available = [];
-            for (let i = min; i <= max; i++) {
-                if (!drawn.includes(i)) available.push(i);
+            for (let i = state.range.min; i <= state.range.max; i++) {
+                if (!state.drawnNumbers.includes(i)) available.push(i);
             }
-
-            if (available.length === 0) {
-                showAlert('Todos os números já foram sorteados nesta série!');
-                return;
-            }
+            if (available.length === 0) return showAlert('Todos os números já foram sorteados nesta série!');
 
             pushHistory(state);
-            const randomIndex = Math.floor(Math.random() * available.length);
-            const num = available[randomIndex];
-
-            state.drawnNumbers.push(num);
+            state.drawnNumbers.push(available[Math.floor(Math.random() * available.length)]);
             saveState(state);
         });
 
@@ -277,17 +236,9 @@ if (!window.__ADMIN_JS_LOADED__) {
             const val = inputManual.value;
             if (!val) return;
             const num = parseInt(val, 10);
-
             const state = loadState();
-            if (isNaN(num) || num < state.range.min || num > state.range.max) {
-                await showAlert('Número inválido fora do intervalo.');
-                return;
-            }
-
-            if (state.drawnNumbers.includes(num)) {
-                await showAlert('Este número já foi sorteado no jogo!');
-                return;
-            }
+            if (isNaN(num) || num < state.range.min || num > state.range.max) return await showAlert('Número inválido fora do intervalo.');
+            if (state.drawnNumbers.includes(num)) return await showAlert('Este número já foi sorteado no jogo!');
 
             pushHistory(state);
             state.drawnNumbers.push(num);
@@ -295,74 +246,39 @@ if (!window.__ADMIN_JS_LOADED__) {
             inputManual.value = '';
         });
 
-        inputManual.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') btnDrawManual.click();
-        });
-
-        btnUndo.addEventListener('click', async () => {
-            if (!canUndo()) return;
-            undoLastAction();
-        });
+        inputManual.addEventListener('keypress', (e) => { if (e.key === 'Enter') btnDrawManual.click(); });
+        btnUndo.addEventListener('click', () => { if (canUndo()) undoLastAction(); });
 
         btnCloseRound.addEventListener('click', async () => {
             const state = loadState();
             const activeRound = state.rounds.find(r => r.endIndex === null);
-
             const lastClosedRound = [...state.rounds].reverse().find(r => r.endIndex !== null && r !== activeRound);
             const startIndex = lastClosedRound ? lastClosedRound.endIndex + 1 : 0;
 
-            if (state.drawnNumbers.length === startIndex) {
-                await showAlert('Não há novos números sorteados para fechar nesta rodada.');
-                return;
-            }
+            if (state.drawnNumbers.length === startIndex) return await showAlert('Não há novos números sorteados para fechar nesta rodada.');
 
             pushHistory(state);
-
             activeRound.endIndex = state.drawnNumbers.length - 1;
             activeRound.status = 'finished';
-
-            const totalInRound = activeRound.endIndex - startIndex + 1;
-            state.uiEvents.push({
-                type: 'round_closed',
-                roundName: activeRound.name,
-                count: totalInRound,
-                timestamp: Date.now()
-            });
-
-            state.rounds.push({
-                name: '',
-                endIndex: null,
-                status: 'active'
-            });
-
+            state.rounds.push({ name: '', endIndex: null, status: 'active' });
             saveState(state);
-
             roundNameInput.focus();
             roundNameInput.select();
         });
 
         btnNewSeries.addEventListener('click', async () => {
             const res = await showConfirm('ATENÇÃO', 'Isso irá zerar TODOS os números sorteados e histórico de rodadas. Deseja iniciar uma NOVA SÉRIE?');
-            if (res.action === 'confirm') {
-                resetState();
-            }
+            if (res.action === 'confirm') resetState();
         });
 
         btnExport.addEventListener('click', () => {
             const state = loadState();
-            const payload = JSON.stringify({
-                ...state,
-                exportTimestamp: Date.now(),
-                schemaVersion: '1.0'
-            }, null, 2);
-
+            const payload = JSON.stringify({ ...state, exportTimestamp: Date.now(), schemaVersion: '1.0' }, null, 2);
             const blob = new Blob([payload], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-
-            const dateStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16);
-            a.download = `bingo-backup-${dateStr}.json`;
+            a.download = `bingo-backup-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 16)}.json`;
             a.click();
             URL.revokeObjectURL(url);
         });
@@ -370,25 +286,19 @@ if (!window.__ADMIN_JS_LOADED__) {
         inputImport.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = async (ev) => {
                 try {
                     const data = JSON.parse(ev.target.result);
                     if (!data.drawnNumbers || !data.rounds) throw new Error("Formato inválido");
-
                     const res = await showConfirm('Atenção', 'Importar backup substituirá todo o jogo atual. Continuar?');
                     if (res.action === 'confirm') {
                         pushHistory(loadState());
-                        delete data.exportTimestamp;
-                        delete data.schemaVersion;
                         rebuildState(data);
                         saveState(data);
                         await showAlert("Backup importado com sucesso!");
                     }
-                } catch (err) {
-                    await showAlert("Erro ao importar: Arquivo inválido ou corrompido.");
-                }
+                } catch (err) { await showAlert("Erro ao importar: Arquivo inválido ou corrompido."); }
                 e.target.value = '';
             };
             reader.readAsText(file);
@@ -397,23 +307,17 @@ if (!window.__ADMIN_JS_LOADED__) {
         btnSaveRange.addEventListener('click', async () => {
             const min = parseInt(inputRangeMin.value, 10);
             const max = parseInt(inputRangeMax.value, 10);
-
-            if (isNaN(min) || isNaN(max) || min >= max || min < 1) {
-                await showAlert("Range inválido. O mínimo deve ser menor que o máximo e maior que 0.");
-                return;
-            }
+            if (isNaN(min) || isNaN(max) || min >= max || min < 1) return await showAlert("Range inválido. O mínimo deve ser menor que o máximo e maior que 0.");
 
             const state = loadState();
             pushHistory(state);
             state.range = { min, max };
-            state.auditLog.push({ action: 'change_range', min, max, timestamp: Date.now() });
             saveState(state);
-            await showAlert(`Range atualizado: sorteio de ${min} até ${max}. A grade da TV foi reajustada.`);
+            await showAlert(`Range atualizado: sorteio de ${min} até ${max}.`);
         });
 
-
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM PNG E FILTRO NATIVO DO BROWSER)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM "O FATIADOR DE CARTELAS")
         // =========================================================================
 
         let cropperInstance = null;
@@ -421,12 +325,10 @@ if (!window.__ADMIN_JS_LOADED__) {
         function setupOCREvents() {
             const triggerBtn = document.getElementById('btn-trigger-ocr');
             const fileInput = document.getElementById('ocr-file-input');
-
             const modalCrop = document.getElementById('modal-ocr-crop');
             const cropContainer = document.querySelector('.crop-container');
             const btnCancelCrop = document.getElementById('btn-cancel-crop');
             const btnProcessCrop = document.getElementById('btn-process-crop');
-
             const modalReview = document.getElementById('modal-ocr-review');
             const btnCancelReview = document.getElementById('btn-cancel-review');
             const btnSubmitTv = document.getElementById('btn-submit-tv');
@@ -440,7 +342,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 if (!file) return;
 
                 const imageUrl = URL.createObjectURL(file);
-
                 cropContainer.innerHTML = '';
 
                 const newImg = document.createElement('img');
@@ -451,28 +352,24 @@ if (!window.__ADMIN_JS_LOADED__) {
                 cropContainer.style.display = 'block';
                 cropContainer.style.width = '100%';
                 cropContainer.style.height = '350px';
-
                 cropContainer.appendChild(newImg);
+
                 modalCrop.classList.add('visible');
 
                 newImg.onload = () => {
                     setTimeout(() => {
                         if (cropperInstance) cropperInstance.destroy();
-
                         cropperInstance = new Cropper(newImg, {
                             aspectRatio: 1,
                             viewMode: 1,
                             dragMode: 'move',
-                            autoCropArea: 0.95,
+                            autoCropArea: 1, // Exige que o usuário corte EXATAMENTE na borda da grade
                             responsive: true,
                             restore: true,
-                            ready: function () {
-                                this.cropper.zoomTo(1);
-                            }
+                            ready: function () { this.cropper.zoomTo(1); }
                         });
                     }, 100);
                 };
-
                 newImg.src = imageUrl;
             });
 
@@ -485,30 +382,57 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                // Captura do recorte na resolução base
+                // Capturamos o recorte em alta resolução
                 const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 1000, height: 1000 });
 
-                // Aplicamos o filtro direto na renderização nativa (mais rápido e inteligente que o loop manual de pixels)
-                // Isso cria uma imagem cinza com contraste forte, matando sombras mas mantendo os números bem pretos
-                const filteredCanvas = document.createElement('canvas');
-                filteredCanvas.width = 1000;
-                filteredCanvas.height = 1000;
-                const fCtx = filteredCanvas.getContext('2d');
-                fCtx.filter = 'grayscale(100%) contrast(150%)';
-                fCtx.drawImage(croppedCanvas, 0, 0);
+                // O FATIADOR: Cria um canvas branco gigante onde vamos colar as peças
+                const cleanCanvas = document.createElement('canvas');
+                cleanCanvas.width = 1200;  // 5 colunas de 240px
+                cleanCanvas.height = 1200; // 5 linhas de 240px
+                const cleanCtx = cleanCanvas.getContext('2d');
 
-                // Aumentamos a MOLDURA BRANCA proporcionalmente
-                const paddedCanvas = document.createElement('canvas');
-                paddedCanvas.width = 1200;
-                paddedCanvas.height = 1200;
-                const paddedCtx = paddedCanvas.getContext('2d');
+                cleanCtx.fillStyle = '#FFFFFF';
+                cleanCtx.fillRect(0, 0, 1200, 1200);
 
-                paddedCtx.fillStyle = '#FFFFFF';
-                paddedCtx.fillRect(0, 0, 1200, 1200);
-                paddedCtx.drawImage(filteredCanvas, 100, 100);
+                const cellW = 1000 / 5; // Cada quadrado da foto tem 200px
+                const cellH = 1000 / 5;
 
-                // A MÁGICA: Exportando como PNG puro, sem compressão destrutiva do JPEG!
-                paddedCanvas.toBlob((blob) => {
+                // Laço matemático: fatia a foto em 25 pedaços
+                for (let row = 0; row < 5; row++) {
+                    for (let col = 0; col < 5; col++) {
+                        if (row === 2 && col === 2) continue; // Pula o FREE do meio
+
+                        // Magia: Cortamos apenas o "miolo" (60%) do quadradinho, descartando as bordas e linhas
+                        const padX = cellW * 0.20;
+                        const padY = cellH * 0.20;
+                        const srcX = (col * cellW) + padX;
+                        const srcY = (row * cellH) + padY;
+                        const sWidth = cellW * 0.60;
+                        const sHeight = cellH * 0.60;
+
+                        // Colamos os miolos na nova lousa digital com espaços em branco enormes entre eles
+                        const destX = (col * 240) + 60;
+                        const destY = (row * 240) + 60;
+                        const dWidth = 120;
+                        const dHeight = 120;
+
+                        cleanCtx.drawImage(croppedCanvas, srcX, srcY, sWidth, sHeight, destX, destY, dWidth, dHeight);
+                    }
+                }
+
+                // Aplica filtro de Contraste e Cinza APENAS nos miolos limpos
+                const imgData = cleanCtx.getImageData(0, 0, 1200, 1200);
+                const data = imgData.data;
+                for (let i = 0; i < data.length; i += 4) {
+                    let gray = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
+                    gray = ((gray - 128) * 1.5) + 128; // Contraste forte
+                    if (gray < 0) gray = 0;
+                    if (gray > 255) gray = 255;
+                    data[i] = data[i + 1] = data[i + 2] = gray;
+                }
+                cleanCtx.putImageData(imgData, 0, 0);
+
+                cleanCanvas.toBlob((blob) => {
                     modalCrop.classList.remove('visible');
                     cropperInstance.destroy();
 
@@ -517,7 +441,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                     document.getElementById('ocr-inputs-container').innerHTML = '';
 
                     runTesseractOCR(blob);
-                }, 'image/png'); // Format alterado aqui para estabilizar a leitura
+                }, 'image/png'); // PNG sem perdas
             });
 
             btnCancelReview.addEventListener('click', () => {
@@ -535,16 +459,11 @@ if (!window.__ADMIN_JS_LOADED__) {
                 });
 
                 const state = loadState();
-                state.currentCheckedCartela = {
-                    numeros: cartelaNumeros,
-                    timestamp: Date.now(),
-                    status: 'display_active'
-                };
-
+                state.currentCheckedCartela = { numeros: cartelaNumeros, timestamp: Date.now(), status: 'display_active' };
                 saveState(state);
+
                 modalReview.classList.remove('visible');
                 fileInput.value = '';
-
                 await showAlert('Cartela enviada com sucesso para a TV!');
             });
         }
@@ -553,21 +472,18 @@ if (!window.__ADMIN_JS_LOADED__) {
             const objectURL = URL.createObjectURL(imageBlob);
 
             try {
-                const worker = await Tesseract.createWorker({
-                    logger: m => console.log(m)
-                });
+                const worker = await Tesseract.createWorker({ logger: m => console.log(m) });
 
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                await worker.setParameters({
-                    tessedit_pageseg_mode: '11',
-                });
+                // PSM 6: Lê os miolos flutuantes como um bloco perfeito.
+                await worker.setParameters({ tessedit_pageseg_mode: '6' });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                console.log("Texto extraído direto da IA (PNG):", text);
+                console.log("Texto Fatiado:", text);
 
                 let cleanedText = text
                     .replace(/[OQDo]/g, '0')
@@ -598,11 +514,8 @@ if (!window.__ADMIN_JS_LOADED__) {
             container.innerHTML = '';
 
             const colRanges = [
-                { min: 1, max: 15 },   // B
-                { min: 16, max: 30 },  // I
-                { min: 31, max: 45 },  // N
-                { min: 46, max: 60 },  // G
-                { min: 61, max: 75 }   // O
+                { min: 1, max: 15 }, { min: 16, max: 30 }, { min: 31, max: 45 },
+                { min: 46, max: 60 }, { min: 61, max: 75 }
             ];
 
             let grid = Array(5).fill(null).map(() => Array(5).fill(0));
