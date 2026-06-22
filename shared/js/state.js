@@ -1,153 +1,170 @@
 // shared/js/state.js
+// Um estado global simples baseado em um único JSON (Single Source of Truth)
 
-// =========================================================================
-// CONFIGURAÇÃO DO FIREBASE
-// =========================================================================
-// ATENÇÃO: Caso seu código utilize chaves específicas abaixo, certifique-se
-// de mantê-las ou configurá-las conforme o seu projeto ativo.
-const firebaseConfig = {
-    // Insira suas chaves do Firebase aqui caso necessário:
-    // apiKey: "...",
-    // authDomain: "...",
-    // databaseURL: "...",
-    // projectId: "...",
-    // storageBucket: "...",
-    // messagingSenderId: "...",
-    // appId: "..."
-};
+// MÁGICA ANTI-DUPLICIDADE: Impede que o Firebase tente se conectar duas vezes
+if (!window.__FIREBASE_INIT__) {
+    window.__FIREBASE_INIT__ = true;
 
-// Inicializa o Firebase apenas se ele já não tiver sido inicializado
-if (typeof firebase !== 'undefined' && firebase.apps.length === 0) {
-    firebase.initializeApp(firebaseConfig);
-}
+    const firebaseConfig = {
+        apiKey: "AIzaSyBX7pu3-vFTzQdwqYE5O3Bf5SksJakvfr0",
+        authDomain: "bingodigital-b182b.firebaseapp.com",
+        databaseURL: "https://bingodigital-b182b-default-rtdb.firebaseio.com",
+        projectId: "bingodigital-b182b",
+        storageBucket: "bingodigital-b182b.firebasestorage.app",
+        messagingSenderId: "958614312677",
+        appId: "1:958614312677:web:789350c66eda097e3da60c"
+    };
 
-// =========================================================================
-// ESTADO INICIAL PADRÃO DO JOGO
-// =========================================================================
-const DEFAULT_STATE = {
-    drawnNumbers: [],
-    rounds: [{ name: '1ª RODADA', endIndex: null, status: 'active' }],
-    range: { min: 1, max: 75 },
-    currentCheckedCartela: null // Armazena os números e o status da conferência em tempo real
-};
-
-// =========================================================================
-// FUNÇÕES DE PERSISTÊNCIA E SINCRONIZAÇÃO
-// =========================================================================
-
-/**
- * Carrega o estado atual do Bingo a partir do LocalStorage.
- * Retorna o estado padrão caso não encontre nenhum registro válido.
- */
-function loadState() {
-    const local = localStorage.getItem('bingo_state');
-    if (local) {
-        try {
-            return JSON.parse(local);
-        } catch (e) {
-            console.error("Erro ao ler o estado local do LocalStorage:", e);
-        }
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
     }
-    return JSON.parse(JSON.stringify(DEFAULT_STATE));
 }
 
-/**
- * Salva o estado atual localmente e sincroniza o OBJETO INTEIRO com o Firebase,
- * garantindo o espelhamento instantâneo da conferência de cartelas na TV.
- */
-function saveState(state) {
-    // 1. Salva no LocalStorage do navegador atual
-    localStorage.setItem('bingo_state', JSON.stringify(state));
+const db = firebase.database();
+const SESSION_ID = 'FESTA_JUNINA_2026';
+const DB_REF = db.ref('sessions/' + SESSION_ID);
 
-    // Dispara o evento local para atualizar as telas na mesma máquina instantaneamente
+const STORAGE_KEY = 'bingo_state';
+const HISTORY_KEY = 'bingo_history';
+
+const defaultState = {
+    range: { min: 1, max: 75 },
+    drawnNumbers: [],
+    rounds: [
+        {
+            name: '',
+            endIndex: null,
+            status: 'active'
+        }
+    ],
+    auditLog: [],
+    uiEvents: []
+};
+
+// VACINA CONTRA O FIREBASE: Garante que os dados nunca venham quebrados
+function sanitizeState(state) {
+    if (!state) return JSON.parse(JSON.stringify(defaultState));
+
+    // Garante que drawnNumbers é sempre um Array (Firebase às vezes converte em objeto)
+    let safeDrawnNumbers = [];
+    if (Array.isArray(state.drawnNumbers)) {
+        safeDrawnNumbers = state.drawnNumbers;
+    } else if (state.drawnNumbers && typeof state.drawnNumbers === 'object') {
+        safeDrawnNumbers = Object.values(state.drawnNumbers);
+    }
+
+    const safeState = {
+        range: state.range || { min: 1, max: 75 },
+        drawnNumbers: safeDrawnNumbers,
+        auditLog: state.auditLog || [],
+        uiEvents: state.uiEvents || [],
+        rounds: state.rounds || []
+    };
+
+    if (safeState.rounds.length === 0) {
+        safeState.rounds.push({ name: '', endIndex: null, status: 'active' });
+    } else {
+        safeState.rounds = safeState.rounds.map(r => ({
+            ...r,
+            name: r.name || '',
+            endIndex: r.endIndex === undefined ? null : r.endIndex,
+            status: r.status || 'active'
+        }));
+    }
+
+    return safeState;
+}
+
+function loadState() {
+    const data = localStorage.getItem(STORAGE_KEY);
+    return data ? sanitizeState(JSON.parse(data)) : JSON.parse(JSON.stringify(defaultState));
+}
+
+function saveState(state) {
+    const safeState = sanitizeState(state);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeState));
     window.dispatchEvent(new Event('local-state-change'));
 
-    // 2. Envia o estado completo e irrestrito para o Firebase Realtime Database
-    if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
-        firebase.database().ref('bingo_state').set(state)
-            .catch(err => console.error("Erro ao sincronizar dados com o Firebase:", err));
-    }
+    DB_REF.set(safeState).catch(e => console.error("Erro Firebase:", e));
 }
 
-// =========================================================================
-// MÓDULO DE HISTÓRICO - SISTEMA DE DESFAZER (UNDO)
-// =========================================================================
-
-/**
- * Salva uma foto do estado anterior no histórico antes de realizar uma nova ação.
- */
-function pushHistory(state) {
-    const history = loadHistory();
-    history.push(JSON.stringify(state));
-    localStorage.setItem('bingo_history', JSON.stringify(history));
-    window.dispatchEvent(new Event('local-history-change'));
-}
-
-/**
- * Recupera a lista de histórico de ações do LocalStorage.
- */
-function loadHistory() {
-    const h = localStorage.getItem('bingo_history');
-    return h ? JSON.parse(h) : [];
-}
-
-/**
- * Verifica se existe alguma ação passível de ser desfeita.
- */
-function canUndo() {
-    return loadHistory().length > 0;
-}
-
-/**
- * Retorna o jogo para o estado imediatamente anterior ao último sorteio ou alteração.
- */
-function undoLastAction() {
-    const history = loadHistory();
-    if (history.length === 0) return;
-
-    const previous = JSON.parse(history.pop());
-    localStorage.setItem('bingo_history', JSON.stringify(history));
-
-    saveState(previous);
-    window.dispatchEvent(new Event('local-history-change'));
-}
-
-// =========================================================================
-// UTILITÁRIOS DE MANUTENÇÃO DO ESTADO
-// =========================================================================
-
-/**
- * Reseta completamente o jogo eliminando históricos e retornando ao padrão inicial.
- */
-function resetState() {
-    localStorage.removeItem('bingo_history');
-    saveState(JSON.parse(JSON.stringify(DEFAULT_STATE)));
-}
-
-/**
- * Garante a integridade estrutural do estado ao realizar importações de backup.
- */
-function rebuildState(state) {
-    if (!state.range) state.range = { min: 1, max: 75 };
-    if (!state.currentCheckedCartela) state.currentCheckedCartela = null;
-    return state;
-}
-
-// =========================================================================
-// ESCUTADOR EM TEMPO REAL PARA A TV (FIREBASE -> LOCALSTORAGE)
-// =========================================================================
-if (typeof firebase !== 'undefined') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (firebase.apps.length > 0) {
-            // Escuta qualquer mudança remota feita pelo Admin e replica na TV
-            firebase.database().ref('bingo_state').on('value', (snapshot) => {
-                const remoteState = snapshot.val();
-                if (remoteState) {
-                    localStorage.setItem('bingo_state', JSON.stringify(remoteState));
-                    // Dispara o evento que aciona a função renderTV() no script da TV
-                    window.dispatchEvent(new Event('local-state-change'));
-                }
-            });
+// Ouve o Firebase apenas UMA vez
+if (!window.__FIREBASE_LISTENER__) {
+    window.__FIREBASE_LISTENER__ = true;
+    DB_REF.on('value', (snapshot) => {
+        const cloudState = snapshot.val();
+        if (cloudState) {
+            const safeCloudState = sanitizeState(cloudState);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(safeCloudState));
+            window.dispatchEvent(new Event('local-state-change'));
+            window.dispatchEvent(new Event('storage'));
         }
     });
+}
+
+function pushHistory(state) {
+    let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    history.push(JSON.parse(JSON.stringify(state)));
+    if (history.length > 50) history.shift();
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    window.dispatchEvent(new Event('local-history-change'));
+}
+
+function undoLastAction() {
+    let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    if (history.length === 0) return false;
+
+    const previousState = history.pop();
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+
+    saveState(previousState);
+
+    window.dispatchEvent(new Event('local-history-change'));
+    return true;
+}
+
+function canUndo() {
+    let history = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    return history.length > 0;
+}
+
+// MÁGICA AQUI: O reset agora preserva as configurações de Min/Máx
+function resetState() {
+    // 1. Pega o estado atual para salvar as configurações
+    const currentState = loadState();
+    const savedRange = currentState.range || { min: 1, max: 75 };
+
+    // 2. Cria um estado zeradinho
+    const newState = JSON.parse(JSON.stringify(defaultState));
+
+    // 3. Devolve a sua configuração de Min/Máx salva
+    newState.range = savedRange;
+
+    // 4. Salva o novo estado
+    localStorage.setItem(HISTORY_KEY, '[]');
+    saveState(newState);
+    window.dispatchEvent(new Event('local-history-change'));
+}
+
+function rebuildState(state) {
+    const totalNumbers = state.drawnNumbers ? state.drawnNumbers.length : 0;
+    if (state.rounds) {
+        state.rounds.forEach(r => {
+            if (r.endIndex !== null && r.endIndex >= totalNumbers) {
+                r.endIndex = totalNumbers - 1 < 0 ? null : totalNumbers - 1;
+            }
+        });
+
+        const activeRounds = state.rounds.filter(r => r.endIndex === null);
+        if (activeRounds.length === 0 && state.rounds.length > 0) {
+            state.rounds.push({ name: '', endIndex: null, status: 'active' });
+        } else if (activeRounds.length > 1) {
+            for (let i = 0; i < state.rounds.length - 1; i++) {
+                if (state.rounds[i].endIndex === null) {
+                    state.rounds[i].endIndex = totalNumbers - 1;
+                }
+            }
+        }
+    }
+    return state;
 }

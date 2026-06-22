@@ -14,6 +14,7 @@
     <style>
         body {
             overflow: hidden;
+            /* Prevent scroll on TV */
             display: flex;
             height: 100vh;
         }
@@ -39,6 +40,7 @@
             top: 2rem;
             font-size: 3rem;
             color: #ffffff;
+            /* AJUSTADO PARA BRANCO PURO */
             text-transform: uppercase;
             letter-spacing: 2px;
         }
@@ -70,6 +72,7 @@
         .panel-section-title {
             font-size: 1.5rem;
             color: #ffffff;
+            /* AJUSTADO PARA BRANCO PURO */
             border-bottom: 2px solid var(--border-color);
             padding-bottom: 0.5rem;
             margin-bottom: 1rem;
@@ -138,27 +141,19 @@
     <div class="tv-layout">
         <div class="main-display">
             <div class="round-title" id="tv-round-title">AGUARDANDO...</div>
-
             <div class="current-number empty" id="tv-current-number">--</div>
-
-            <div id="tv-cartela-container">
-                <h3
-                    style="text-align: center; color: var(--primary-color); margin-bottom: 1rem; font-size: 1.5rem; font-weight: 800;">
-                    🔍 SUSPENSE... CONFERINDO CARTELA
-                </h3>
-                <div id="tv-cartela-grid" style="transform: scale(1.15);"></div>
-            </div>
         </div>
-
         <div class="side-panel">
             <div>
                 <h3 class="panel-section-title">NÚMEROS SORTEADOS</h3>
-                <div class="current-numbers-grid" id="tv-current-numbers-grid"></div>
+                <div class="current-numbers-grid" id="tv-current-numbers-grid">
+                </div>
             </div>
 
             <div style="flex: 1;">
                 <h3 class="panel-section-title">RODADAS ANTERIORES</h3>
-                <div id="tv-closed-rounds"></div>
+                <div id="tv-closed-rounds">
+                </div>
             </div>
         </div>
     </div>

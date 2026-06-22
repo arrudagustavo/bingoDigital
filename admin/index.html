@@ -10,9 +10,13 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f172a">
 
+    <!-- CSS do Cropper (Ferramenta de Recorte) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
+
+    <!-- CSS Global -->
     <link rel="stylesheet" href="../shared/css/style.css">
     <link rel="manifest" href="manifest.json">
+
     <style>
         body {
             background-color: var(--bg-color);
@@ -140,6 +144,143 @@
         .closed-round-item:last-child {
             border-bottom: none;
         }
+
+        .danger-zone {
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--danger-color);
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        /* =========================================
+           UX EXCLUSIVA DA TELA DE CONFERÊNCIA
+           ========================================= */
+
+        /* A mágica que transforma a lista em uma grade 5x5 */
+        .ocr-cartela-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.4rem;
+            margin: 1.5rem 0;
+            justify-items: center;
+        }
+
+        /* O estilo quadrado e bonito de cada número */
+        .ocr-input-cell {
+            width: 100%;
+            aspect-ratio: 1;
+            /* Força a ser um quadrado perfeito */
+            text-align: center;
+            font-size: 1.25rem;
+            font-weight: 800;
+            border-radius: 6px;
+            border: 2px solid var(--border-color);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            outline: none;
+            transition: all 0.2s;
+            padding: 0;
+        }
+
+        .ocr-input-cell:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+        }
+
+        /* Ocultar as setinhas nativas dos inputs de número */
+        .ocr-input-cell::-webkit-outer-spin-button,
+        .ocr-input-cell::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .ocr-input-cell[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        /* Pinta o input de VERDE quando o número foi sorteado */
+        .ocr-input-cell.matched {
+            background-color: var(--primary-color) !important;
+            color: white !important;
+            border-color: var(--primary-dark) !important;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+        }
+
+        /* Caixa que guarda a lista de rodadas embaixo da cartela */
+        .match-round-list {
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            text-align: left;
+            margin-top: 1rem;
+        }
+
+        /* Título de cada rodada dentro da lista */
+        .match-round-title {
+            font-size: 0.85rem;
+            color: var(--muted-color);
+            margin-top: 1rem;
+            margin-bottom: 0.5rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.25rem;
+        }
+
+        .match-round-title:first-child {
+            margin-top: 0;
+        }
+
+        /* As "fichinhas" dos números sorteados nas rodadas */
+        .match-number-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            margin: 0.2rem;
+            color: var(--muted-color);
+            background-color: var(--panel-bg);
+        }
+
+        /* Fichinha fica verde se bater com um número da cartela */
+        .match-number-chip.matched {
+            background-color: var(--primary-color);
+            border-color: var(--primary-dark);
+            color: white;
+        }
+
+        /* Animação de carregando a imagem */
+        .ocr-loading {
+            text-align: center;
+            color: var(--secondary-color);
+            font-weight: bold;
+            margin-top: 1rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
+        }
     </style>
 </head>
 
@@ -159,10 +300,11 @@
             <div style="color: var(--muted-color); margin-top: 1rem;" id="admin-count">0 sorteados</div>
         </div>
 
+        <!-- BOTÃO DE VERIFICAR CARTELA (CÂMERA/OCR) -->
         <div style="margin-bottom: 0.5rem;">
             <button class="btn btn-warning" id="btn-trigger-ocr"
-                style="width: 100%; font-size: 1.1rem; padding: 1rem; font-weight: 800; background-color: #8e44ad;">📸
-                VERIFICAR CARTELA (FOTO)</button>
+                style="width: 100%; font-size: 1.1rem; padding: 1rem; font-weight: 800; background-color: #8e44ad; color: white;">📸
+                VERIFICAR CARTELA</button>
             <input type="file" id="ocr-file-input" accept="image/*" style="display: none;">
         </div>
 
@@ -183,7 +325,8 @@
 
         <div class="history-panel">
             <h3 style="color: white; font-size: 1rem;">Números Sorteados</h3>
-            <div class="history-grid" id="admin-history"></div>
+            <div class="history-grid" id="admin-history">
+            </div>
         </div>
 
         <div class="closed-rounds-panel">
@@ -221,18 +364,21 @@
         </div>
     </div>
 
+    <!-- MODAIS DO SISTEMA -->
     <div id="custom-modal-overlay" class="modal-overlay">
-        <div class="modal-content" id="modal-content-container"></div>
+        <div class="modal-content" id="modal-content-container">
+        </div>
     </div>
 
+    <!-- MODAL 1: CROP DA CARTELA -->
     <div id="modal-ocr-crop" class="modal-overlay">
         <div class="modal-content" style="max-width: 450px;">
             <h3>📐 Ajuste o Recorte da Cartela</h3>
-            <p>Deixe apenas a grade dos números visível.</p>
-            <div class="crop-container">
+            <p style="color: var(--muted-color); font-size: 0.9rem;">Deixe apenas a grade dos números visível.</p>
+            <div class="crop-container" style="margin: 1rem 0;">
                 <img id="ocr-crop-image" src="">
             </div>
-            <div class="modal-buttons">
+            <div class="modal-buttons" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
                 <button class="btn" id="btn-cancel-crop">Cancelar</button>
                 <button class="btn btn-primary" id="btn-process-crop" style="padding:0.5rem 1rem; font-size:1rem;">Ler
                     Números</button>
@@ -240,24 +386,38 @@
         </div>
     </div>
 
+    <!-- MODAL 2: CONFERÊNCIA DE CARTELA (UX FINAL) -->
     <div id="modal-ocr-review" class="modal-overlay">
         <div class="modal-content" style="max-width: 450px;">
-            <h3>🔍 Double Check - Cartela</h3>
-            <p>Ajuste algum número caso a câmera tenha lido errado:</p>
+            <h3>🔍 Conferência de Cartela</h3>
+            <p style="color: var(--muted-color); font-size: 0.9rem;">Ajuste se necessário e clique em Conferir para
+                auditar a cartela.</p>
+
             <div id="ocr-loading-status" class="ocr-loading" style="display: none;">Lendo imagem... Aguarde.</div>
+
+            <!-- Grade da Cartela 5x5 -->
             <div class="ocr-cartela-grid" id="ocr-inputs-container"></div>
-            <div class="modal-buttons">
+
+            <!-- Lista de Auditoria das Rodadas (Fica invisível até clicar em Conferir) -->
+            <div id="ocr-match-results" class="match-round-list" style="display: none;"></div>
+
+            <div class="modal-buttons" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
                 <button class="btn" id="btn-cancel-review">Cancelar</button>
                 <button class="btn btn-primary" id="btn-submit-tv"
-                    style="padding:0.5rem 1rem; font-size:1rem; background-color:#27ae60;">Conferir</button>
+                    style="padding:0.5rem 1rem; font-size:1rem; background-color:#10b981;">
+                    Conferir
+                </button>
             </div>
         </div>
     </div>
 
+    <!-- SCRIPTS EXTERNOS (CROPPER, TESSERACT E FIREBASE) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- SCRIPTS LOCAIS -->
     <script src="../shared/js/state.js"></script>
     <script src="js/admin.js"></script>
 </body>
