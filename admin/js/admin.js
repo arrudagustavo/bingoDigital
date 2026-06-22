@@ -48,6 +48,7 @@ if (!window.__ADMIN_JS_LOADED__) {
             });
         }
 
+        // Modais Reestilizadas com UX aprimorada
         function showAlert(message) {
             return showModal(`
                 <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Aviso</h3>
@@ -413,7 +414,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM PADDING BRANCO E THRESHOLD INTELIGENTE)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM PADDING BRANCO E "IA PURA")
         // =========================================================================
 
         let cropperInstance = null;
@@ -463,7 +464,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                             aspectRatio: 1,
                             viewMode: 1,
                             dragMode: 'move',
-                            autoCropArea: 0.95, // Recorta mais perto da borda
+                            autoCropArea: 0.95, // Recorta rente, o código cria a margem branca depois
                             responsive: true,
                             restore: true,
                             ready: function () {
@@ -485,38 +486,18 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                // 1. Pegamos a imagem recortada com boa resolução
+                // Pegamos a imagem crua colorida. A IA do Tesseract faz a binarização melhor que a gente.
                 const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 800, height: 800 });
-                const ctx = croppedCanvas.getContext('2d');
-                const imgData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height);
-                const data = imgData.data;
 
-                // 2. FILTRO THRESHOLD: Transforma em Preto e Branco Absoluto, mas de forma calibrada.
-                // Isso mata a grade do bingo e deixa só os números nítidos.
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-
-                    const luminance = (r * 0.299) + (g * 0.587) + (b * 0.114);
-                    // O valor 140 é o "ponto de corte" ideal para fundos coloridos impressos
-                    const color = luminance < 140 ? 0 : 255;
-
-                    data[i] = data[i + 1] = data[i + 2] = color;
-                }
-                ctx.putImageData(imgData, 0, 0);
-
-                // 3. O SEGREDO DO "RESPIRO" (PADDING BRANCO):
-                // O Tesseract ignora números que encostam na borda. 
-                // Então nós criamos um quadro branco gigante de 1000x1000 e colamos a imagem de 800x800 no meio!
+                // Criamos o "Quadro Branco Gigante" para enganar a IA e fazer ela achar que os números estão longe da borda
                 const paddedCanvas = document.createElement('canvas');
                 paddedCanvas.width = 1000;
                 paddedCanvas.height = 1000;
                 const paddedCtx = paddedCanvas.getContext('2d');
 
-                paddedCtx.fillStyle = '#FFFFFF'; // Fundo totalmente branco
+                paddedCtx.fillStyle = '#FFFFFF';
                 paddedCtx.fillRect(0, 0, 1000, 1000);
-                paddedCtx.drawImage(croppedCanvas, 100, 100); // Cola a imagem deixando 100px de margem em tudo
+                paddedCtx.drawImage(croppedCanvas, 100, 100);
 
                 paddedCanvas.toBlob((blob) => {
                     modalCrop.classList.remove('visible');
@@ -570,17 +551,15 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // MODO PSM 11 (Sparse Text): O atirador de elite ativado.
-                // Como agora a imagem tem uma borda branca gigante e a grade foi enfraquecida pelo filtro Preto e Branco,
-                // ele vai achar todos os números boiando na tela.
+                // MODO PSM 6: Bloquinho de texto. É a melhor configuração para matrizes 5x5.
                 await worker.setParameters({
-                    tessedit_pageseg_mode: '11',
+                    tessedit_pageseg_mode: '6',
                 });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                // TRADUTOR REGEX: Caso a binarização tenha borrado um número e ele pareça uma letra, nós consertamos.
+                // TRADUTOR REGEX: Nós traduzimos as letras que a IA do Tesseract achou parecido com número.
                 let cleanedText = text
                     .replace(/[OQDo]/g, '0')
                     .replace(/[Il\|!]/g, '1')
@@ -591,7 +570,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                     .replace(/[T]/g, '7')
                     .replace(/[B]/g, '8');
 
-                console.log("Texto extraído com margem branca e filtro P&B:", cleanedText);
+                console.log("Texto lido pela IA Pura:", cleanedText);
 
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
                 let foundNumbers = cleanedText.match(regexNumbers) || [];
