@@ -318,7 +318,7 @@ if (!window.__ADMIN_JS_LOADED__) {
         });
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (O FATIADOR COM MAPA DE COORDENADAS GPS)
+        // MÓDULO INJETADO: CÂMERA E OCR + LÓGICA DE UX DO PULO DO GATO
         // =========================================================================
 
         let cropperInstance = null;
@@ -333,6 +333,9 @@ if (!window.__ADMIN_JS_LOADED__) {
             const modalReview = document.getElementById('modal-ocr-review');
             const btnCancelReview = document.getElementById('btn-cancel-review');
             const btnSubmitTv = document.getElementById('btn-submit-tv');
+
+            // Troca o nome do botão "Conferir na TV" para apenas "Conferir"
+            if (btnSubmitTv) btnSubmitTv.textContent = "Conferir";
 
             if (!triggerBtn) return;
 
@@ -384,33 +387,28 @@ if (!window.__ADMIN_JS_LOADED__) {
                 if (!cropperInstance) return;
 
                 const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 1000, height: 1000 });
-
-                // O FATIADOR
                 const cleanCanvas = document.createElement('canvas');
-                cleanCanvas.width = 1200;  // 5x5 de células (cada uma ocupa 240x240 na tela nova)
+                cleanCanvas.width = 1200;
                 cleanCanvas.height = 1200;
                 const cleanCtx = cleanCanvas.getContext('2d');
 
                 cleanCtx.fillStyle = '#FFFFFF';
                 cleanCtx.fillRect(0, 0, 1200, 1200);
 
-                const cellW = 1000 / 5; // 200px na foto original
+                const cellW = 1000 / 5;
                 const cellH = 1000 / 5;
 
                 for (let row = 0; row < 5; row++) {
                     for (let col = 0; col < 5; col++) {
-                        if (row === 2 && col === 2) continue; // Pula o meio (FREE)
+                        if (row === 2 && col === 2) continue;
 
-                        // CORREÇÃO: Cortamos 10% da borda em vez de 20%, protegendo o seu número 5!
                         const padX = cellW * 0.10;
                         const padY = cellH * 0.10;
                         const srcX = (col * cellW) + padX;
                         const srcY = (row * cellH) + padY;
-                        const sWidth = cellW * 0.80; // 80% do miolo
+                        const sWidth = cellW * 0.80;
                         const sHeight = cellH * 0.80;
 
-                        // Colamos os miolos na lousa digital.
-                        // Cada bloco mora num quadrado invisível de 240x240.
                         const destX = (col * 240) + 60;
                         const destY = (row * 240) + 60;
                         const dWidth = 120;
@@ -420,7 +418,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                     }
                 }
 
-                // Filtro para tirar a sombra rosa e deixar a tinta preta
                 const imgData = cleanCtx.getImageData(0, 0, 1200, 1200);
                 const data = imgData.data;
                 for (let i = 0; i < data.length; i += 4) {
@@ -444,27 +441,106 @@ if (!window.__ADMIN_JS_LOADED__) {
                 }, 'image/png');
             });
 
-            btnCancelReview.addEventListener('click', () => {
-                modalReview.classList.remove('visible');
-                fileInput.value = '';
-            });
-
-            btnSubmitTv.addEventListener('click', async () => {
+            // O LÓGICA MÁGICA: O QUE ACONTECE QUANDO CLICA EM "CONFERIR"
+            btnSubmitTv.addEventListener('click', () => {
+                const state = loadState();
+                const drawn = state.drawnNumbers;
                 const inputs = document.querySelectorAll('.ocr-input-cell');
                 const cartelaNumeros = [];
 
+                // 1. Pinta a grade no celular e salva os números
                 inputs.forEach(input => {
                     const val = parseInt(input.value, 10);
                     cartelaNumeros.push(isNaN(val) ? 0 : val);
+
+                    input.classList.remove('matched');
+                    // Se o número for maior que 0 e já foi sorteado no banco, pinta de verde
+                    if (val > 0 && drawn.includes(val)) {
+                        input.classList.add('matched');
+                    }
                 });
 
-                const state = loadState();
-                state.currentCheckedCartela = { numeros: cartelaNumeros, timestamp: Date.now(), status: 'display_active' };
+                // 2. Cria a lista de rodadas embaixo da cartela
+                let resultsDiv = document.getElementById('ocr-match-results');
+                if (!resultsDiv) {
+                    resultsDiv = document.createElement('div');
+                    resultsDiv.id = 'ocr-match-results';
+                    resultsDiv.className = 'match-round-list';
+                    resultsDiv.style.marginTop = '1.5rem';
+                    document.getElementById('ocr-inputs-container').after(resultsDiv);
+                }
+                resultsDiv.style.display = 'block';
+                resultsDiv.innerHTML = '';
+
+                let startIndex = 0;
+                const roundsHtml = [];
+                state.rounds.forEach((round, i) => {
+                    if (round.endIndex !== null) {
+                        const slice = drawn.slice(startIndex, round.endIndex + 1);
+                        roundsHtml.push({ name: round.name || `RODADA ${i + 1}`, numbers: slice });
+                        startIndex = round.endIndex + 1;
+                    }
+                });
+                // Rodada em andamento
+                if (startIndex < drawn.length) {
+                    roundsHtml.push({ name: 'RODADA ATUAL (ABERTA)', numbers: drawn.slice(startIndex) });
+                }
+
+                if (roundsHtml.length === 0) {
+                    resultsDiv.innerHTML = '<div style="color: var(--muted-color); font-size: 0.9rem; text-align:center;">Nenhum número sorteado ainda.</div>';
+                } else {
+                    roundsHtml.forEach(r => {
+                        const title = document.createElement('div');
+                        title.className = 'match-round-title';
+                        title.textContent = r.name;
+                        resultsDiv.appendChild(title);
+
+                        r.numbers.forEach(num => {
+                            const chip = document.createElement('span');
+                            chip.className = 'match-number-chip';
+                            if (cartelaNumeros.includes(num)) {
+                                chip.classList.add('matched'); // Fica verde se existir na cartela
+                            }
+                            chip.textContent = num;
+                            resultsDiv.appendChild(chip);
+                        });
+                    });
+                }
+
+                // 3. Atualiza o Firebase para a TV trocar o telão
+                state.currentCheckedCartela = {
+                    numeros: cartelaNumeros,
+                    timestamp: Date.now(),
+                    status: 'display_active'
+                };
                 saveState(state);
 
+                // 4. Troca a interface dos botões
+                btnSubmitTv.style.display = 'none'; // Esconde o botão Conferir
+                btnCancelReview.textContent = 'Fechar Conferência'; // Muda o Cancelar
+                btnCancelReview.classList.add('btn-primary');
+            });
+
+            // O QUE ACONTECE QUANDO CLICA EM "CANCELAR" OU "FECHAR CONFERÊNCIA"
+            btnCancelReview.addEventListener('click', () => {
+                const state = loadState();
+
+                // Se a TV estava exibindo a cartela, manda ela voltar para o número gigante
+                if (state.currentCheckedCartela && state.currentCheckedCartela.status === 'display_active') {
+                    state.currentCheckedCartela.status = 'closed';
+                    saveState(state);
+                }
+
+                // Fecha a modal
                 modalReview.classList.remove('visible');
                 fileInput.value = '';
-                await showAlert('Cartela enviada com sucesso para a TV!');
+
+                // Reseta tudo para o formato padrão para a próxima cartela
+                btnSubmitTv.style.display = 'block';
+                btnCancelReview.textContent = 'Cancelar';
+                btnCancelReview.classList.remove('btn-primary');
+                const resultsDiv = document.getElementById('ocr-match-results');
+                if (resultsDiv) resultsDiv.style.display = 'none';
             });
         }
 
@@ -473,23 +549,17 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             try {
                 const worker = await Tesseract.createWorker({ logger: m => console.log(m) });
-
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
-
                 await worker.setParameters({ tessedit_pageseg_mode: '6' });
 
-                // A IA DEVOLVE O TEXTO E A POSIÇÃO (Bounding Box) DO TEXTO NA TELA!
                 const { data } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                // Montamos a grade de inputs zerada, livre da dança das cadeiras!
                 let matrixGrid = Array(5).fill(null).map(() => Array(5).fill(0));
                 matrixGrid[2][2] = 99; // FREE
 
-                // Percorremos cada "palavra" que a IA encontrou na imagem
                 data.words.forEach(word => {
-                    // Tradutor flexível (removi o B->8 porque estava transformando seu 5 em 8)
                     let cleaned = word.text.toUpperCase()
                         .replace(/[OQDo]/g, '0')
                         .replace(/[Il\|!i]/g, '1')
@@ -503,17 +573,13 @@ if (!window.__ADMIN_JS_LOADED__) {
 
                     if (numMatch) {
                         const num = parseInt(numMatch[0], 10);
-
-                        // Pegamos o centro exato de onde esse número estava desenhado
                         const centerX = (word.bbox.x0 + word.bbox.x1) / 2;
                         const centerY = (word.bbox.y0 + word.bbox.y1) / 2;
 
-                        // A nossa matemática perfeita revela a qual linha e coluna esse pixel pertence
                         const col = Math.floor(centerX / 240);
                         const row = Math.floor(centerY / 240);
 
                         if (row >= 0 && row < 5 && col >= 0 && col < 5 && !(row === 2 && col === 2)) {
-                            // Validação extra de segurança: só insere se o número bater com a regra daquela coluna BINGO
                             const minVal = col * 15 + 1;
                             const maxVal = col * 15 + 15;
                             if (num >= minVal && num <= maxVal) {
@@ -523,19 +589,16 @@ if (!window.__ADMIN_JS_LOADED__) {
                     }
                 });
 
-                // Agora só passamos a matriz exata pra tela desenhar os inputs
                 generateOcrInputGrid(matrixGrid);
 
             } catch (err) {
                 console.error("Erro no Worker OCR:", err);
-                // Matriz limpa em caso de falha severa
                 generateOcrInputGrid(Array(5).fill(null).map(() => Array(5).fill(0)));
             } finally {
                 document.getElementById('ocr-loading-status').style.display = 'none';
             }
         }
 
-        // A função de tela agora é passiva: só desenha o que o Tesseract mapeou pelo GPS
         function generateOcrInputGrid(gridMatrix) {
             const container = document.getElementById('ocr-inputs-container');
             container.innerHTML = '';
