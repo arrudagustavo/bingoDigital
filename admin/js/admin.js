@@ -420,7 +420,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO PRETO E BRANCO E TRADUTOR)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO E "WHITELIST" 100% NUMÉRICA)
         // =========================================================================
 
         let cropperInstance = null;
@@ -489,7 +489,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                 fileInput.value = '';
             });
 
-            // NOVA LÓGICA: FILTRO MATADOR DE FUNDO ROSA
+            // FILTRO MATADOR DE FUNDO ROSA
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
@@ -498,16 +498,13 @@ if (!window.__ADMIN_JS_LOADED__) {
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const data = imgData.data;
 
-                // Varrida pixel por pixel: Força a imagem a ficar Preto Puro ou Branco Puro
+                // Força Preto e Branco puro
                 for (let i = 0; i < data.length; i += 4) {
                     const r = data[i];
                     const g = data[i + 1];
                     const b = data[i + 2];
 
-                    // Cálculo de luminosidade
                     const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-
-                    // Se for menor que 130 (é tinta preta), pinta de PRETO. Se for maior (fundo rosa), pinta de BRANCO.
                     const color = luminance < 130 ? 0 : 255;
 
                     data[i] = data[i + 1] = data[i + 2] = color;
@@ -522,6 +519,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                     document.getElementById('ocr-loading-status').style.display = 'block';
                     document.getElementById('ocr-inputs-container').innerHTML = '';
 
+                    // Inicia o motor Tesseract Numérico
                     runTesseractOCR(blob);
                 }, 'image/jpeg', 0.9);
             });
@@ -555,34 +553,43 @@ if (!window.__ADMIN_JS_LOADED__) {
             });
         }
 
-        function runTesseractOCR(imageBlob) {
+        // MOTOR ASYNC TESSERACT: FORÇANDO APENAS NÚMEROS
+        async function runTesseractOCR(imageBlob) {
             const objectURL = URL.createObjectURL(imageBlob);
 
-            Tesseract.recognize(
-                objectURL,
-                'eng', // MUDANÇA 1: Mudamos de Português para Inglês (foco melhor em números)
-                { logger: m => console.log(m) }
-            ).then(({ data: { text } }) => {
+            try {
+                // Instancia o Worker Oficial do Tesseract
+                const worker = await Tesseract.createWorker({
+                    logger: m => console.log(m) // Mostra o progresso no console do navegador
+                });
 
-                // MUDANÇA 2: O TRADUTOR DE CONFUSÕES (Limpa os erros comuns de letras vs números)
-                let cleanText = text.toUpperCase();
-                cleanText = cleanText.replace(/[L|I|\|]/g, '1'); // L, I ou barra reta viram o número 1
-                cleanText = cleanText.replace(/O/g, '0');        // Letra O vira Zero
-                cleanText = cleanText.replace(/Z/g, '2');        // Letra Z vira 2
-                cleanText = cleanText.replace(/S/g, '5');        // Letra S vira 5
-                cleanText = cleanText.replace(/B/g, '8');        // Letra B vira 8
-                cleanText = cleanText.replace(/A/g, '4');        // Letra A vira 4
+                await worker.loadLanguage('eng');
+                await worker.initialize('eng');
+
+                // === A MÁGICA AQUI: PROÍBE O OCR DE LER QUALQUER LETRA ===
+                await worker.setParameters({
+                    tessedit_char_whitelist: '0123456789',
+                });
+
+                // Lê a imagem
+                const { data: { text } } = await worker.recognize(objectURL);
+                console.log("Texto puro extraído da Whitelist:", text);
+
+                // Desliga o worker para liberar a memória do celular
+                await worker.terminate();
 
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
-                let foundNumbers = cleanText.match(regexNumbers) || [];
+                let foundNumbers = text.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
 
                 generateOcrInputGrid(foundNumbers);
-            }).catch(err => {
+
+            } catch (err) {
+                console.error("Erro no Worker OCR:", err);
                 generateOcrInputGrid([]);
-            }).finally(() => {
+            } finally {
                 document.getElementById('ocr-loading-status').style.display = 'none';
-            });
+            }
         }
 
         function generateOcrInputGrid(extractedNumbers) {
