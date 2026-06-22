@@ -10,10 +10,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f172a">
 
-    <!-- CSS do Cropper (Ferramenta de Recorte) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 
-    <!-- CSS Global -->
     <link rel="stylesheet" href="../shared/css/style.css">
     <link rel="manifest" href="manifest.json">
 
@@ -22,9 +20,11 @@
             background-color: var(--bg-color);
         }
 
-        /* Classe que trava o scroll do fundo */
+        /* Classe que trava o scroll do fundo no Mobile */
         body.no-scroll {
             overflow: hidden !important;
+            touch-action: none;
+            /* Desativa a ação de toque no corpo */
         }
 
         .admin-container {
@@ -165,6 +165,8 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.2s ease;
+            overscroll-behavior: none;
+            /* Trava o vazamento de scroll para o corpo no iOS */
         }
 
         .modal-overlay.visible {
@@ -184,20 +186,19 @@
             display: flex;
             flex-direction: column;
             color: var(--text-color);
+            touch-action: auto;
+            /* Permite toques internos */
         }
 
         .modal-content h3 {
             margin: 0 0 0.25rem 0;
-            /* Menos espaço no título */
             font-size: 1.2rem;
             flex-shrink: 0;
         }
 
         .modal-content p {
             margin: 0 0 0.25rem 0;
-            /* Espaço drásticamente reduzido para a tabela (era 1rem) */
             font-size: 0.85rem;
-            /* Fonte um pouco menor para ganhar espaço */
             color: var(--muted-color);
             line-height: 1.2;
             flex-shrink: 0;
@@ -219,9 +220,7 @@
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 0.3rem;
-            /* Grid um pouquinho mais fechado */
             margin: 0.25rem 0;
-            /* Tabela grudada no texto de cima para salvar espaço */
             justify-items: center;
             flex-shrink: 0;
         }
@@ -273,6 +272,10 @@
             border: 1px solid var(--border-color);
             text-align: left;
             margin-top: 0.5rem;
+
+            /* Hacks para scroll perfeito e travado no iOS */
+            overscroll-behavior: contain;
+            -webkit-overflow-scrolling: touch;
         }
 
         .match-round-title {
@@ -426,13 +429,11 @@
         </div>
     </div>
 
-    <!-- MODAIS DO SISTEMA -->
     <div id="custom-modal-overlay" class="modal-overlay">
         <div class="modal-content" id="modal-content-container">
         </div>
     </div>
 
-    <!-- MODAL 1: CROP DA CARTELA -->
     <div id="modal-ocr-crop" class="modal-overlay">
         <div class="modal-content">
             <h3>📐 Ajuste o Recorte</h3>
@@ -449,7 +450,6 @@
         </div>
     </div>
 
-    <!-- MODAL 2: CONFERÊNCIA DE CARTELA (UX OTIMIZADA) -->
     <div id="modal-ocr-review" class="modal-overlay">
         <div class="modal-content">
             <h3>🔍 Conferência</h3>
@@ -457,10 +457,8 @@
 
             <div id="ocr-loading-status" class="ocr-loading" style="display: none;">Lendo imagem... Aguarde.</div>
 
-            <!-- Grade da Cartela 5x5 colada no topo para dar espaço -->
             <div class="ocr-cartela-grid" id="ocr-inputs-container"></div>
 
-            <!-- Lista de Auditoria -->
             <div id="ocr-match-results" class="match-round-list" style="display: none;"></div>
 
             <div class="modal-buttons">
@@ -473,13 +471,10 @@
         </div>
     </div>
 
-    <!-- SCRIPTS EXTERNOS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-
-    <!-- SCRIPTS LOCAIS -->
     <script src="../shared/js/state.js"></script>
     <script src="js/admin.js"></script>
 </body>

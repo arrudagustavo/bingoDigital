@@ -5,7 +5,6 @@ if (!window.__ADMIN_JS_LOADED__) {
 
     document.addEventListener('DOMContentLoaded', () => {
 
-        // Zera qualquer conferência que tenha ficado travada num refresh acidental
         const initSt = loadState();
         if (initSt.checkingCard !== null) {
             initSt.checkingCard = null;
@@ -267,13 +266,43 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             if (state.drawnNumbers.length === startIndex) return await showAlert('Não há novos números sorteados para fechar nesta rodada.');
 
+            // Salva o estado da rodada
             pushHistory(state);
             activeRound.endIndex = state.drawnNumbers.length - 1;
             activeRound.status = 'finished';
             state.rounds.push({ name: '', endIndex: null, status: 'active' });
             saveState(state);
-            roundNameInput.focus();
-            roundNameInput.select();
+
+            // ==========================================
+            // ANIMAÇÃO DE SUCESSO E SCROLL SUAVE
+            // ==========================================
+
+            // 1. Modifica o botão visualmente
+            const originalText = btnCloseRound.textContent;
+            btnCloseRound.textContent = '✅ Fechada!';
+            btnCloseRound.style.backgroundColor = '#10b981';
+            btnCloseRound.style.color = 'white';
+            btnCloseRound.style.transform = 'scale(1.05)';
+            btnCloseRound.style.transition = 'all 0.3s ease';
+
+            // 2. Rola a tela para o topo suavemente (Removemos o .focus() agressivo)
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // 3. Pisca o input lá no topo para chamar a atenção
+            setTimeout(() => {
+                roundNameInput.style.transition = 'box-shadow 0.3s ease';
+                roundNameInput.style.boxShadow = '0 0 15px rgba(59, 130, 246, 0.8)';
+            }, 300);
+
+            // 4. Retorna tudo ao normal após 2 segundos
+            setTimeout(() => {
+                btnCloseRound.textContent = originalText;
+                btnCloseRound.style.backgroundColor = '';
+                btnCloseRound.style.color = '';
+                btnCloseRound.style.transform = 'scale(1)';
+
+                roundNameInput.style.boxShadow = 'none';
+            }, 2000);
         });
 
         btnNewSeries.addEventListener('click', async () => {
@@ -467,9 +496,8 @@ if (!window.__ADMIN_JS_LOADED__) {
                     }
                 });
 
-                // NOVO: SALVA A CARTELA NO ESTADO E ENVIA PARA A TV
                 state.checkingCard = cartelaNumeros;
-                saveState(state); // Dispara o Firebase e atualiza a TV na hora!
+                saveState(state);
 
                 let resultsDiv = document.getElementById('ocr-match-results');
                 if (!resultsDiv) {
@@ -528,7 +556,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 document.body.classList.remove('no-scroll');
                 fileInput.value = '';
 
-                // NOVO: APAGA A CARTELA DO ESTADO, FAZENDO A TV VOLTAR AO NORMAL
                 const state = loadState();
                 state.checkingCard = null;
                 saveState(state);
@@ -543,6 +570,16 @@ if (!window.__ADMIN_JS_LOADED__) {
                 const resultsDiv = document.getElementById('ocr-match-results');
                 if (resultsDiv) resultsDiv.style.display = 'none';
             });
+
+            const reviewModalBlocker = document.getElementById('modal-ocr-review');
+            if (reviewModalBlocker) {
+                reviewModalBlocker.addEventListener('touchmove', (e) => {
+                    const scrollableList = e.target.closest('.match-round-list');
+                    if (!scrollableList) {
+                        e.preventDefault();
+                    }
+                }, { passive: false });
+            }
         }
 
         async function runTesseractOCR(imageBlob) {
