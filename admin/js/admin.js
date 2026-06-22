@@ -418,5 +418,184 @@ if (!window.__ADMIN_JS_LOADED__) {
             saveState(state);
             await showAlert(`Range atualizado: sorteio de ${min} até ${max}. A grade da TV foi reajustada.`);
         });
+
+
+        // =========================================================================
+        // MÓDULO INJETADO: CÂMERA E OCR (VERIFICAÇÃO DE CARTELA)
+        // =========================================================================
+
+        let cropperInstance = null;
+
+        function setupOCREvents() {
+            const triggerBtn = document.getElementById('btn-trigger-ocr');
+            const fileInput = document.getElementById('ocr-file-input');
+
+            const modalCrop = document.getElementById('modal-ocr-crop');
+            const cropImgElement = document.getElementById('ocr-crop-image');
+            const btnCancelCrop = document.getElementById('btn-cancel-crop');
+            const btnProcessCrop = document.getElementById('btn-process-crop');
+
+            const modalReview = document.getElementById('modal-ocr-review');
+            const btnCancelReview = document.getElementById('btn-cancel-review');
+            const btnSubmitTv = document.getElementById('btn-submit-tv');
+
+            if (!triggerBtn) return; // Trava de segurança
+
+            // Clicou no botão roxo -> abre seletor (ou câmera nativa no celular)
+            triggerBtn.addEventListener('click', () => fileInput.click());
+
+            // Arquivo carregado
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    cropImgElement.src = event.target.result;
+                    modalCrop.classList.add('visible');
+
+                    if (cropperInstance) cropperInstance.destroy();
+                    cropperInstance = new Cropper(cropImgElement, {
+                        aspectRatio: 1,
+                        viewMode: 1,
+                        autoCropArea: 0.8
+                    });
+                };
+                reader.readAsDataURL(file);
+            });
+
+            btnCancelCrop.addEventListener('click', () => {
+                modalCrop.classList.remove('visible');
+                if (cropperInstance) cropperInstance.destroy();
+                fileInput.value = '';
+            });
+
+            // Confirma o corte e invoca a IA
+            btnProcessCrop.addEventListener('click', () => {
+                if (!cropperInstance) return;
+
+                cropperInstance.getCroppedCanvas({ width: 600, height: 600 }).toBlob((blob) => {
+                    modalCrop.classList.remove('visible');
+                    cropperInstance.destroy();
+
+                    modalReview.classList.add('visible');
+                    document.getElementById('ocr-loading-status').style.display = 'block';
+                    document.getElementById('ocr-inputs-container').innerHTML = '';
+
+                    runTesseractOCR(blob);
+                }, 'image/jpeg');
+            });
+
+            btnCancelReview.addEventListener('click', () => {
+                modalReview.classList.remove('visible');
+                fileInput.value = '';
+            });
+
+            // Envia para o Firebase (Para a TV)
+            btnSubmitTv.addEventListener('click', async () => {
+                const inputs = document.querySelectorAll('.ocr-input-cell');
+                const cartelaNumeros = [];
+
+                inputs.forEach(input => {
+                    const val = parseInt(input.value, 10);
+                    cartelaNumeros.push(isNaN(val) ? 0 : val);
+                });
+
+                const state = loadState();
+                state.currentCheckedCartela = {
+                    numeros: cartelaNumeros,
+                    timestamp: Date.now(),
+                    status: 'display_active'
+                };
+
+                saveState(state);
+                modalReview.classList.remove('visible');
+                fileInput.value = '';
+
+                await showAlert('Cartela enviada com sucesso para a TV!');
+            });
+        }
+
+        function runTesseractOCR(imageBlob) {
+            const objectURL = URL.createObjectURL(imageBlob);
+
+            Tesseract.recognize(
+                objectURL,
+                'por',
+                { logger: m => console.log(m) }
+            ).then(({ data: { text } }) => {
+                // Caçador de números usando RegEx
+                const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
+                let foundNumbers = text.match(regexNumbers) || [];
+                foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
+
+                generateOcrInputGrid(foundNumbers);
+            }).catch(err => {
+                generateOcrInputGrid([]);
+            }).finally(() => {
+                document.getElementById('ocr-loading-status').style.display = 'none';
+            });
+        }
+
+        function generateOcrInputGrid(extractedNumbers) {
+            const container = document.getElementById('ocr-inputs-container');
+            container.innerHTML = '';
+
+            const colRanges = [
+                { min: 1, max: 15 },   // B
+                { min: 16, max: 30 },  // I
+                { min: 31, max: 45 },  // N
+                { min: 46, max: 60 },  // G
+                { min: 61, max: 75 }   // O
+            ];
+
+            let grid = Array(5).fill(null).map(() => Array(5).fill(0));
+
+            // Distribui os números encontrados em suas respectivas colunas lógicas
+            colRanges.forEach((range, colIndex) => {
+                const validForColumn = extractedNumbers.filter(n => n >= range.min && n <= range.max);
+
+                for (let rowIndex = 0; rowIndex < 5; rowIndex++) {
+                    if (colIndex === 2 && rowIndex === 2) {
+                        grid[rowIndex][colIndex] = 99; // Marca do quadrado grátis central
+                        continue;
+                    }
+                    if (validForColumn[rowIndex]) {
+                        grid[rowIndex][colIndex] = validForColumn[rowIndex];
+                    }
+                }
+            });
+
+            // Desenha os inputs na tela
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < 5; col++) {
+                    const input = document.createElement('input');
+                    input.type = "number";
+                    input.className = "ocr-input-cell";
+                    input.pattern = "[0-9]*";
+                    input.inputMode = "numeric";
+
+                    const val = grid[row][col];
+
+                    if (val === 99) {
+                        input.value = "0";
+                        input.disabled = true;
+                        input.style.backgroundColor = "var(--primary-dark)";
+                        input.style.color = "#fff";
+                        input.style.opacity = "0.7";
+                    } else if (val > 0) {
+                        input.value = val;
+                    } else {
+                        input.value = "";
+                    }
+
+                    container.appendChild(input);
+                }
+            }
+        }
+
+        // Ativa os cliques e eventos da Câmera
+        setupOCREvents();
+        // FIM DO MÓDULO DE OCR
     });
 }

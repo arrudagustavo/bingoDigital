@@ -3,24 +3,14 @@
 
 :root {
     --bg-color: #0f172a;
-    /* Slate 900 */
     --text-color: #f8fafc;
-    /* Slate 50 */
     --primary-color: #10b981;
-    /* Emerald 500 */
     --primary-dark: #059669;
-    /* Emerald 600 */
     --secondary-color: #3b82f6;
-    /* Blue 500 */
     --danger-color: #ef4444;
-    /* Red 500 */
     --panel-bg: #1e293b;
-    /* Slate 800 */
     --border-color: #334155;
-    /* Slate 700 */
     --muted-color: #94a3b8;
-    /* Slate 400 */
-
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
@@ -64,7 +54,6 @@ button:disabled {
     transform: none;
 }
 
-/* Utils */
 .container {
     max-width: 1200px;
     margin: 0 auto;
@@ -108,7 +97,6 @@ button:disabled {
     gap: 1rem;
 }
 
-/* Buttons */
 .btn {
     padding: 0.75rem 1.5rem;
     font-size: 1rem;
@@ -137,7 +125,6 @@ button:disabled {
     border: none;
 }
 
-/* TV Overlay */
 .tv-overlay {
     position: fixed;
     top: 0;
@@ -151,9 +138,7 @@ button:disabled {
     align-items: center;
     justify-content: center;
     text-align: center;
-    /* FORÇA O TEXTO A FICAR NO MEIO */
     padding: 2rem;
-    /* IMPEDE O TEXTO DE COLAR NAS BORDAS */
     box-sizing: border-box;
     z-index: 9999;
     opacity: 0;
@@ -185,7 +170,6 @@ button:disabled {
     opacity: 0.9;
 }
 
-/* Modals */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -239,22 +223,14 @@ button:disabled {
     margin-top: 1rem;
 }
 
-/* =========================================
-   AJUSTES DE UX - PORTAL E INPUTS ADMIN
-   ========================================= */
-
-/* 1. Ajuste dos Cards do Portal (Versão Desktop) */
 .portal-card {
     width: 320px !important;
-    /* Aumenta a largura para caber o texto */
 }
 
 .portal-card h2 {
     white-space: nowrap !important;
-    /* Proíbe o título de quebrar a linha */
 }
 
-/* 2. Tamanho e Fonte do Input Manual */
 #input-manual {
     font-size: 1.0rem !important;
     padding: 0.5rem !important;
@@ -266,7 +242,6 @@ button:disabled {
     box-sizing: border-box !important;
 }
 
-/* Tamanho focado nos Inputs de Configuração (Min e Max) */
 #input-range-min,
 #input-range-max {
     font-size: 1.5rem !important;
@@ -280,13 +255,11 @@ button:disabled {
     box-sizing: border-box !important;
 }
 
-/* Ajuste para o botão manual não quebrar o layout */
 #input-manual+button {
     height: 56px !important;
     font-size: 1.1rem !important;
 }
 
-/* 3. Correção da Posição dos Botões nas Rodadas Anteriores (Admin) */
 .closed-round-item {
     flex-direction: column !important;
     align-items: stretch !important;
@@ -301,12 +274,9 @@ button:disabled {
 .closed-round-item>div:last-child {
     width: 100% !important;
     justify-content: flex-end !important;
-    /* Empurra os botões para a direita */
 }
 
-/* 4. Correção da Tela Principal (Portal) para Celulares */
 @media (max-width: 768px) {
-
     body {
         overflow-x: hidden;
     }
@@ -329,26 +299,67 @@ button:disabled {
     }
 }
 
-/* <--- Fim do @media mobile! Tudo que está ABAIXO disso vale para telas grandes também */
-
-/* =========================================
-   AJUSTES DE CORES DA TV (TEXTOS EM BRANCO)
-   ========================================= */
-
-/* Força o Nome da Rodada a ficar Branco Puro e em Negrito */
 #tv-round-title {
     color: #ffffff !important;
     font-weight: 900 !important;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5) !important;
-    /* Dá um sombreado para destacar mais */
 }
 
-/* Força os títulos "Números Sorteados" e "Rodadas Anteriores" a ficarem brancos */
-/* (Pega qualquer título h2, h3 ou classe de título dentro da tela da TV) */
 .tv-container h2,
 .tv-container h3,
 .section-title,
 [id^="tv-"] h3 {
     color: #ffffff !important;
     opacity: 1 !important;
+}
+
+/* =========================================
+   ESTILOS DO OCR E CÂMERA (VERSÃO 2)
+   ========================================= */
+.ocr-cartela-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.35rem;
+    margin: 1rem 0;
+}
+
+.ocr-input-cell {
+    width: 100%;
+    height: 45px;
+    text-align: center;
+    font-size: 1.25rem;
+    font-weight: 800;
+    border-radius: 6px;
+    border: 2px solid var(--border-color);
+    background-color: var(--bg-color);
+    color: #fff;
+}
+
+.ocr-input-cell:focus {
+    border-color: var(--primary-color);
+    outline: none;
+}
+
+.crop-container {
+    max-width: 100%;
+    max-height: 350px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+    border-radius: 8px;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.crop-container img {
+    display: block;
+    max-width: 100%;
+}
+
+.ocr-loading {
+    text-align: center;
+    padding: 1rem;
+    font-weight: bold;
+    color: var(--primary-color);
 }
