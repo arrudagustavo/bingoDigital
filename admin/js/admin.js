@@ -48,7 +48,6 @@ if (!window.__ADMIN_JS_LOADED__) {
             });
         }
 
-        // Modais Reestilizadas com UX aprimorada
         function showAlert(message) {
             return showModal(`
                 <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Aviso</h3>
@@ -414,7 +413,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM PADDING BRANCO E "IA PURA")
+        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO SUAVE, PADDING E WHITELIST)
         // =========================================================================
 
         let cropperInstance = null;
@@ -464,7 +463,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                             aspectRatio: 1,
                             viewMode: 1,
                             dragMode: 'move',
-                            autoCropArea: 0.95, // Recorta rente, o código cria a margem branca depois
+                            autoCropArea: 0.95,
                             responsive: true,
                             restore: true,
                             ready: function () {
@@ -486,10 +485,27 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                // Pegamos a imagem crua colorida. A IA do Tesseract faz a binarização melhor que a gente.
                 const croppedCanvas = cropperInstance.getCroppedCanvas({ width: 800, height: 800 });
+                const ctx = croppedCanvas.getContext('2d');
+                const imgData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height);
+                const data = imgData.data;
 
-                // Criamos o "Quadro Branco Gigante" para enganar a IA e fazer ela achar que os números estão longe da borda
+                // FILTRO: Tons de Cinza + Contraste Suave
+                // Isso preserva os números nas sombras, mas destaca a tinta preta do fundo rosa
+                for (let i = 0; i < data.length; i += 4) {
+                    let gray = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
+
+                    // Aumenta o contraste suavemente (fator 1.3) em vez de binarizar violentamente
+                    gray = ((gray - 128) * 1.3) + 128;
+
+                    if (gray < 0) gray = 0;
+                    if (gray > 255) gray = 255;
+
+                    data[i] = data[i + 1] = data[i + 2] = gray;
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                // O "Quadro Branco" para proteger os números das bordas
                 const paddedCanvas = document.createElement('canvas');
                 paddedCanvas.width = 1000;
                 paddedCanvas.height = 1000;
@@ -551,29 +567,20 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // MODO PSM 6: Bloquinho de texto. É a melhor configuração para matrizes 5x5.
+                // MÁGICA: Whitelist restrita + PSM 11
+                // Impede a IA de tentar ler a grade como texto e força a procurar números espalhados
                 await worker.setParameters({
-                    tessedit_pageseg_mode: '6',
+                    tessedit_char_whitelist: '0123456789',
+                    tessedit_pageseg_mode: '11',
                 });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                // TRADUTOR REGEX: Nós traduzimos as letras que a IA do Tesseract achou parecido com número.
-                let cleanedText = text
-                    .replace(/[OQDo]/g, '0')
-                    .replace(/[Il\|!]/g, '1')
-                    .replace(/[Zz]/g, '2')
-                    .replace(/[A]/g, '4')
-                    .replace(/[Ss]/g, '5')
-                    .replace(/[G]/g, '6')
-                    .replace(/[T]/g, '7')
-                    .replace(/[B]/g, '8');
-
-                console.log("Texto lido pela IA Pura:", cleanedText);
+                console.log("Texto lido pela IA (Atirador de Elite + Filtro Suave):", text);
 
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
-                let foundNumbers = cleanedText.match(regexNumbers) || [];
+                let foundNumbers = text.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
 
                 generateOcrInputGrid(foundNumbers);
