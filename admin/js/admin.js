@@ -444,22 +444,28 @@ if (!window.__ADMIN_JS_LOADED__) {
             // Clicou no botão roxo -> abre seletor (ou câmera nativa no celular)
             triggerBtn.addEventListener('click', () => fileInput.click());
 
-            // Arquivo carregado
+            // Arquivo carregado (Foto tirada ou Galeria)
             fileInput.addEventListener('change', (e) => {
                 const file = e.target.files[0];
                 if (!file) return;
 
                 const reader = new FileReader();
                 reader.onload = (event) => {
-                    cropImgElement.src = event.target.result;
+                    // 1. Mostra a janela preta primeiro
                     modalCrop.classList.add('visible');
 
-                    if (cropperInstance) cropperInstance.destroy();
-                    cropperInstance = new Cropper(cropImgElement, {
-                        aspectRatio: 1,
-                        viewMode: 1,
-                        autoCropArea: 0.8
-                    });
+                    // 2. Avisa o sistema: "Só ligue o Cropper quando a imagem estiver 100% carregada na tela"
+                    cropImgElement.onload = () => {
+                        if (cropperInstance) cropperInstance.destroy();
+                        cropperInstance = new Cropper(cropImgElement, {
+                            aspectRatio: 1,
+                            viewMode: 1,
+                            autoCropArea: 0.8
+                        });
+                    };
+
+                    // 3. Joga a foto gigante do iPhone na tag <img> (isso ativa a regra acima)
+                    cropImgElement.src = event.target.result;
                 };
                 reader.readAsDataURL(file);
             });
