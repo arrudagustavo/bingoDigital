@@ -116,7 +116,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 chip.title = `Clique para editar o ${index + 1}º número sorteado`;
 
                 chip.addEventListener('click', async () => {
-                    // Modal reestilizada com Grid e inputs ajustados
                     const result = await showModal(`
                         <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Número ${num} <span style="font-size: 0.9rem; color: var(--muted-color); font-weight: normal;">(Sorteio #${index + 1})</span></h3>
                         <p style="margin-bottom: 1rem; color: var(--muted-color); font-size: 0.95rem;">O que deseja fazer com este número?</p>
@@ -421,7 +420,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (VERIFICAÇÃO DE CARTELA)
+        // MÓDULO INJETADO: CÂMERA E OCR (VERIFICAÇÃO DE CARTELA) - FIX PARA IOS
         // =========================================================================
 
         let cropperInstance = null;
@@ -431,7 +430,7 @@ if (!window.__ADMIN_JS_LOADED__) {
             const fileInput = document.getElementById('ocr-file-input');
 
             const modalCrop = document.getElementById('modal-ocr-crop');
-            const cropImgElement = document.getElementById('ocr-crop-image');
+            const cropContainer = document.querySelector('.crop-container');
             const btnCancelCrop = document.getElementById('btn-cancel-crop');
             const btnProcessCrop = document.getElementById('btn-process-crop');
 
@@ -439,9 +438,9 @@ if (!window.__ADMIN_JS_LOADED__) {
             const btnCancelReview = document.getElementById('btn-cancel-review');
             const btnSubmitTv = document.getElementById('btn-submit-tv');
 
-            if (!triggerBtn) return; // Trava de segurança
+            if (!triggerBtn) return;
 
-            // Clicou no botão roxo -> abre seletor (ou câmera nativa no celular)
+            // Clicou no botão roxo -> abre seletor
             triggerBtn.addEventListener('click', () => fileInput.click());
 
             // Arquivo carregado (Foto tirada ou Galeria)
@@ -449,27 +448,46 @@ if (!window.__ADMIN_JS_LOADED__) {
                 const file = e.target.files[0];
                 if (!file) return;
 
-                // TRUQUE PARA iPHONE: Cria um link temporário da imagem direto do armazenamento (Zero travamento de memória)
                 const imageUrl = URL.createObjectURL(file);
 
-                // 1. Exibe a janela modal
+                // 1. Limpa o container para forçar recriação (ajuda muito o iOS a não engolir a div)
+                cropContainer.innerHTML = '';
+
+                const newImg = document.createElement('img');
+                newImg.id = 'ocr-crop-image';
+                newImg.style.display = 'block';
+                newImg.style.maxWidth = '100%';
+
+                // 2. Força dimensões via CSS para o iOS enxergar a div
+                cropContainer.style.display = 'block';
+                cropContainer.style.width = '100%';
+                cropContainer.style.height = '350px';
+
+                cropContainer.appendChild(newImg);
+
+                // 3. Mostra a modal
                 modalCrop.classList.add('visible');
 
-                // 2. Avisa o sistema para ligar o Cropper assim que a foto piscar na tela
-                cropImgElement.onload = () => {
-                    // Delay de 50ms para dar tempo da animação do CSS do iPhone terminar
+                // 4. Aguarda a imagem preencher a tela antes de ligar o plugin
+                newImg.onload = () => {
                     setTimeout(() => {
                         if (cropperInstance) cropperInstance.destroy();
-                        cropperInstance = new Cropper(cropImgElement, {
+
+                        cropperInstance = new Cropper(newImg, {
                             aspectRatio: 1,
                             viewMode: 1,
-                            autoCropArea: 0.8
+                            dragMode: 'move',
+                            autoCropArea: 0.9,
+                            responsive: true,
+                            restore: true,
+                            ready: function () {
+                                this.cropper.zoomTo(1);
+                            }
                         });
-                    }, 50);
+                    }, 100);
                 };
 
-                // 3. Joga a foto no HTML
-                cropImgElement.src = imageUrl;
+                newImg.src = imageUrl;
             });
 
             btnCancelCrop.addEventListener('click', () => {
@@ -491,7 +509,7 @@ if (!window.__ADMIN_JS_LOADED__) {
                     document.getElementById('ocr-inputs-container').innerHTML = '';
 
                     runTesseractOCR(blob);
-                }, 'image/jpeg');
+                }, 'image/jpeg', 0.9);
             });
 
             btnCancelReview.addEventListener('click', () => {
@@ -532,7 +550,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 'por',
                 { logger: m => console.log(m) }
             ).then(({ data: { text } }) => {
-                // Caçador de números usando RegEx
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
                 let foundNumbers = text.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
@@ -559,13 +576,12 @@ if (!window.__ADMIN_JS_LOADED__) {
 
             let grid = Array(5).fill(null).map(() => Array(5).fill(0));
 
-            // Distribui os números encontrados em suas respectivas colunas lógicas
             colRanges.forEach((range, colIndex) => {
                 const validForColumn = extractedNumbers.filter(n => n >= range.min && n <= range.max);
 
                 for (let rowIndex = 0; rowIndex < 5; rowIndex++) {
                     if (colIndex === 2 && rowIndex === 2) {
-                        grid[rowIndex][colIndex] = 99; // Marca do quadrado grátis central
+                        grid[rowIndex][colIndex] = 99;
                         continue;
                     }
                     if (validForColumn[rowIndex]) {
@@ -574,7 +590,6 @@ if (!window.__ADMIN_JS_LOADED__) {
                 }
             });
 
-            // Desenha os inputs na tela
             for (let row = 0; row < 5; row++) {
                 for (let col = 0; col < 5; col++) {
                     const input = document.createElement('input');
@@ -602,7 +617,7 @@ if (!window.__ADMIN_JS_LOADED__) {
             }
         }
 
-        // Ativa os cliques e eventos da Câmera
+        // Ativa os cliques e eventos da Câmera isoladamente
         setupOCREvents();
         // FIM DO MÓDULO DE OCR
     });
