@@ -420,7 +420,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM MODO "ATIRADOR DE ELITE" - PSM 11)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO BALANCEADO E TRADUTOR REGEX)
         // =========================================================================
 
         let cropperInstance = null;
@@ -492,7 +492,33 @@ if (!window.__ADMIN_JS_LOADED__) {
             btnProcessCrop.addEventListener('click', () => {
                 if (!cropperInstance) return;
 
-                cropperInstance.getCroppedCanvas({ width: 800, height: 800 }).toBlob((blob) => {
+                const canvas = cropperInstance.getCroppedCanvas({ width: 800, height: 800 });
+                const ctx = canvas.getContext('2d');
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imgData.data;
+
+                // NOVO FILTRO FOTOGRÁFICO: Escala de Cinza + Alto Contraste 
+                // Suaviza o fundo rosa sem destruir os números pretos
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+
+                    // Escala de cinza padrão
+                    let gray = (r * 0.299) + (g * 0.587) + (b * 0.114);
+
+                    // Aumenta o contraste (Fator 1.5)
+                    gray = ((gray - 128) * 1.5) + 128;
+
+                    // Trava nos limites de cor
+                    if (gray < 0) gray = 0;
+                    if (gray > 255) gray = 255;
+
+                    data[i] = data[i + 1] = data[i + 2] = gray;
+                }
+                ctx.putImageData(imgData, 0, 0);
+
+                canvas.toBlob((blob) => {
                     modalCrop.classList.remove('visible');
                     cropperInstance.destroy();
 
@@ -544,20 +570,31 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // MÁGICA FINAL: PSM 11 = "Sparse Text". 
-                // Ignora as linhas da grade e busca bloquinhos de texto isolados.
+                // MODO PSM 6: Lê como um bloco uniforme (não perde a matriz da tabela)
+                // Removemos a Whitelist para impedir que ele leia a grade como números 1 ou 7
                 await worker.setParameters({
-                    tessedit_char_whitelist: '0123456789',
-                    tessedit_pageseg_mode: '11',
+                    tessedit_pageseg_mode: '6',
                 });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                console.log("Texto puro extraído:", text);
+                // TRADUTOR REGEX: Conserta as confusões clássicas de letras que o Tesseract faz
+                let cleanedText = text
+                    .replace(/[OQDo]/g, '0')
+                    .replace(/[Il\|!]/g, '1')
+                    .replace(/[Zz]/g, '2')
+                    .replace(/[A]/g, '4')
+                    .replace(/[Ss]/g, '5')
+                    .replace(/[G]/g, '6')
+                    .replace(/[T]/g, '7')
+                    .replace(/[B]/g, '8');
 
+                console.log("Texto extraído e limpo:", cleanedText);
+
+                // Pesca qualquer número de 1 a 75 na bagunça que sobrar
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
-                let foundNumbers = text.match(regexNumbers) || [];
+                let foundNumbers = cleanedText.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
 
                 generateOcrInputGrid(foundNumbers);
