@@ -413,7 +413,7 @@ if (!window.__ADMIN_JS_LOADED__) {
 
 
         // =========================================================================
-        // MÓDULO INJETADO: CÂMERA E OCR (COM FILTRO SUAVE, PADDING E WHITELIST)
+        // MÓDULO INJETADO: CÂMERA E OCR (COM O MELHOR DE TODAS AS TENTATIVAS)
         // =========================================================================
 
         let cropperInstance = null;
@@ -490,13 +490,12 @@ if (!window.__ADMIN_JS_LOADED__) {
                 const imgData = ctx.getImageData(0, 0, croppedCanvas.width, croppedCanvas.height);
                 const data = imgData.data;
 
-                // FILTRO: Tons de Cinza + Contraste Suave
-                // Isso preserva os números nas sombras, mas destaca a tinta preta do fundo rosa
+                // 1. O FILTRO DE OURO (Da Tentativa 2)
+                // Escala de cinza com Contraste FORTE (1.5x) para matar o fundo rosa, mas preservar os números
                 for (let i = 0; i < data.length; i += 4) {
                     let gray = (data[i] * 0.299) + (data[i + 1] * 0.587) + (data[i + 2] * 0.114);
 
-                    // Aumenta o contraste suavemente (fator 1.3) em vez de binarizar violentamente
-                    gray = ((gray - 128) * 1.3) + 128;
+                    gray = ((gray - 128) * 1.5) + 128;
 
                     if (gray < 0) gray = 0;
                     if (gray > 255) gray = 255;
@@ -505,7 +504,8 @@ if (!window.__ADMIN_JS_LOADED__) {
                 }
                 ctx.putImageData(imgData, 0, 0);
 
-                // O "Quadro Branco" para proteger os números das bordas
+                // 2. A MOLDURA DE OURO (Da Tentativa 3)
+                // Impede que o Tesseract corte as bordas achando que é sujeira da lente
                 const paddedCanvas = document.createElement('canvas');
                 paddedCanvas.width = 1000;
                 paddedCanvas.height = 1000;
@@ -567,20 +567,32 @@ if (!window.__ADMIN_JS_LOADED__) {
                 await worker.loadLanguage('eng');
                 await worker.initialize('eng');
 
-                // MÁGICA: Whitelist restrita + PSM 11
-                // Impede a IA de tentar ler a grade como texto e força a procurar números espalhados
+                // 3. A CONFIGURAÇÃO DE OURO
+                // PSM 11 sem Whitelist. Ele vai ler a bagunça toda (letras e números)
                 await worker.setParameters({
-                    tessedit_char_whitelist: '0123456789',
-                    tessedit_pageseg_mode: '11',
+                    tessedit_pageseg_mode: '11'
                 });
 
                 const { data: { text } } = await worker.recognize(objectURL);
                 await worker.terminate();
 
-                console.log("Texto lido pela IA (Atirador de Elite + Filtro Suave):", text);
+                // 4. O TRADUTOR DE OURO
+                // Se a IA achar que o 5 é um S, a gente conserta
+                let cleanedText = text
+                    .replace(/[OQDo]/g, '0')
+                    .replace(/[Il\|!i]/g, '1')
+                    .replace(/[Zz]/g, '2')
+                    .replace(/[A]/g, '4')
+                    .replace(/[Ss]/g, '5')
+                    .replace(/[Gg]/g, '6')
+                    .replace(/[Tt]/g, '7')
+                    .replace(/[B8]/g, '8');
 
+                console.log("Texto extraído da fusão de ouro:", cleanedText);
+
+                // Filtramos apenas números de 1 a 75
                 const regexNumbers = /\b([1-9]|[1-6][0-9]|7[0-5])\b/g;
-                let foundNumbers = text.match(regexNumbers) || [];
+                let foundNumbers = cleanedText.match(regexNumbers) || [];
                 foundNumbers = [...new Set(foundNumbers.map(n => parseInt(n, 10)))];
 
                 generateOcrInputGrid(foundNumbers);
