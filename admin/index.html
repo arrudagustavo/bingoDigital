@@ -22,6 +22,11 @@
             background-color: var(--bg-color);
         }
 
+        /* Classe que trava o scroll do fundo */
+        body.no-scroll {
+            overflow: hidden !important;
+        }
+
         .admin-container {
             max-width: 600px;
             margin: 0 auto;
@@ -145,33 +150,85 @@
             border-bottom: none;
         }
 
-        .danger-zone {
-            margin-top: 2rem;
-            padding-top: 1rem;
-            border-top: 1px solid var(--danger-color);
+        /* Modais */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Estrutura Responsiva da Modal */
+        .modal-content {
+            background-color: var(--panel-bg);
+            padding: 1.5rem;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 450px;
+            max-height: 90vh;
+            border: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            gap: 1rem;
+            color: var(--text-color);
+        }
+
+        .modal-content h3 {
+            margin: 0 0 0.25rem 0;
+            /* Menos espaço no título */
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .modal-content p {
+            margin: 0 0 0.25rem 0;
+            /* Espaço drásticamente reduzido para a tabela (era 1rem) */
+            font-size: 0.85rem;
+            /* Fonte um pouco menor para ganhar espaço */
+            color: var(--muted-color);
+            line-height: 1.2;
+            flex-shrink: 0;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1rem;
+            flex-shrink: 0;
         }
 
         /* =========================================
            UX EXCLUSIVA DA TELA DE CONFERÊNCIA
            ========================================= */
 
-        /* A mágica que transforma a lista em uma grade 5x5 */
         .ocr-cartela-grid {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
-            gap: 0.4rem;
-            margin: 1.5rem 0;
+            gap: 0.3rem;
+            /* Grid um pouquinho mais fechado */
+            margin: 0.25rem 0;
+            /* Tabela grudada no texto de cima para salvar espaço */
             justify-items: center;
+            flex-shrink: 0;
         }
 
-        /* O estilo quadrado e bonito de cada número */
         .ocr-input-cell {
             width: 100%;
             aspect-ratio: 1;
-            /* Força a ser um quadrado perfeito */
             text-align: center;
             font-size: 1.25rem;
             font-weight: 800;
@@ -189,7 +246,6 @@
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
         }
 
-        /* Ocultar as setinhas nativas dos inputs de número */
         .ocr-input-cell::-webkit-outer-spin-button,
         .ocr-input-cell::-webkit-inner-spin-button {
             -webkit-appearance: none;
@@ -200,7 +256,6 @@
             -moz-appearance: textfield;
         }
 
-        /* Pinta o input de VERDE quando o número foi sorteado */
         .ocr-input-cell.matched {
             background-color: var(--primary-color) !important;
             color: white !important;
@@ -208,19 +263,18 @@
             box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
         }
 
-        /* Caixa que guarda a lista de rodadas embaixo da cartela */
         .match-round-list {
             background: var(--bg-color);
             padding: 1rem;
             border-radius: 8px;
-            max-height: 220px;
+            flex: 1;
+            min-height: 0;
             overflow-y: auto;
             border: 1px solid var(--border-color);
             text-align: left;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
         }
 
-        /* Título de cada rodada dentro da lista */
         .match-round-title {
             font-size: 0.85rem;
             color: var(--muted-color);
@@ -236,7 +290,6 @@
             margin-top: 0;
         }
 
-        /* As "fichinhas" dos números sorteados nas rodadas */
         .match-number-chip {
             display: inline-flex;
             align-items: center;
@@ -252,20 +305,19 @@
             background-color: var(--panel-bg);
         }
 
-        /* Fichinha fica verde se bater com um número da cartela */
         .match-number-chip.matched {
             background-color: var(--primary-color);
             border-color: var(--primary-dark);
             color: white;
         }
 
-        /* Animação de carregando a imagem */
         .ocr-loading {
             text-align: center;
             color: var(--secondary-color);
             font-weight: bold;
-            margin-top: 1rem;
+            margin: 1rem 0;
             animation: pulse 1.5s infinite;
+            flex-shrink: 0;
         }
 
         @keyframes pulse {
@@ -280,6 +332,17 @@
             100% {
                 opacity: 0.6;
             }
+        }
+
+        .crop-container {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            border-radius: 8px;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
     </style>
 </head>
@@ -300,7 +363,6 @@
             <div style="color: var(--muted-color); margin-top: 1rem;" id="admin-count">0 sorteados</div>
         </div>
 
-        <!-- BOTÃO DE VERIFICAR CARTELA (CÂMERA/OCR) -->
         <div style="margin-bottom: 0.5rem;">
             <button class="btn btn-warning" id="btn-trigger-ocr"
                 style="width: 100%; font-size: 1.1rem; padding: 1rem; font-weight: 800; background-color: #8e44ad; color: white;">📸
@@ -372,10 +434,11 @@
 
     <!-- MODAL 1: CROP DA CARTELA -->
     <div id="modal-ocr-crop" class="modal-overlay">
-        <div class="modal-content" style="max-width: 450px;">
-            <h3>📐 Ajuste o Recorte da Cartela</h3>
-            <p style="color: var(--muted-color); font-size: 0.9rem;">Deixe apenas a grade dos números visível.</p>
-            <div class="crop-container" style="margin: 1rem 0;">
+        <div class="modal-content">
+            <h3>📐 Ajuste o Recorte</h3>
+            <p style="color: var(--muted-color); font-size: 0.85rem; margin-bottom: 0.5rem;">Deixe apenas a grade dos
+                números visível.</p>
+            <div class="crop-container">
                 <img id="ocr-crop-image" src="">
             </div>
             <div class="modal-buttons" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
@@ -386,22 +449,21 @@
         </div>
     </div>
 
-    <!-- MODAL 2: CONFERÊNCIA DE CARTELA (UX FINAL) -->
+    <!-- MODAL 2: CONFERÊNCIA DE CARTELA (UX OTIMIZADA) -->
     <div id="modal-ocr-review" class="modal-overlay">
-        <div class="modal-content" style="max-width: 450px;">
-            <h3>🔍 Conferência de Cartela</h3>
-            <p style="color: var(--muted-color); font-size: 0.9rem;">Ajuste se necessário e clique em Conferir para
-                auditar a cartela.</p>
+        <div class="modal-content">
+            <h3>🔍 Conferência</h3>
+            <p>Ajuste se necessário e clique em Conferir.</p>
 
             <div id="ocr-loading-status" class="ocr-loading" style="display: none;">Lendo imagem... Aguarde.</div>
 
-            <!-- Grade da Cartela 5x5 -->
+            <!-- Grade da Cartela 5x5 colada no topo para dar espaço -->
             <div class="ocr-cartela-grid" id="ocr-inputs-container"></div>
 
-            <!-- Lista de Auditoria das Rodadas (Fica invisível até clicar em Conferir) -->
+            <!-- Lista de Auditoria -->
             <div id="ocr-match-results" class="match-round-list" style="display: none;"></div>
 
-            <div class="modal-buttons" style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+            <div class="modal-buttons">
                 <button class="btn" id="btn-cancel-review">Cancelar</button>
                 <button class="btn btn-primary" id="btn-submit-tv"
                     style="padding:0.5rem 1rem; font-size:1rem; background-color:#10b981;">
@@ -411,7 +473,7 @@
         </div>
     </div>
 
-    <!-- SCRIPTS EXTERNOS (CROPPER, TESSERACT E FIREBASE) -->
+    <!-- SCRIPTS EXTERNOS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
