@@ -79,22 +79,24 @@ function renderTV() {
         closedRoundsContainer.appendChild(div);
     });
 
-    // 5. Handle Overlay
+    // 5. Handle Overlay (Ajustado para 5 segundos)
     const overlay = document.getElementById('tv-overlay');
     const uiEvents = state.uiEvents || [];
     const lastEvent = uiEvents[uiEvents.length - 1];
 
     if (lastEvent && lastEvent.type === 'round_closed') {
         const elapsed = Date.now() - lastEvent.timestamp;
-        if (elapsed < 3000) {
+
+        // 5000 = 5 Segundos
+        if (elapsed < 5000) {
             document.getElementById('overlay-title').textContent = lastEvent.roundName;
             document.getElementById('overlay-count').textContent = `${lastEvent.count} números sorteados`;
             overlay.classList.add('visible');
 
-            // Auto hide after the 3000ms window expires
+            // Esconde automaticamente depois que os 5 segundos passarem
             setTimeout(() => {
                 overlay.classList.remove('visible');
-            }, 3000 - elapsed);
+            }, 5000 - elapsed);
         } else {
             overlay.classList.remove('visible');
         }

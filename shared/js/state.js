@@ -1,4 +1,4 @@
-// state.js
+// shared/js/state.js
 // Um estado global simples baseado em um único JSON (Single Source of Truth)
 
 // MÁGICA ANTI-DUPLICIDADE: Impede que o Firebase tente se conectar duas vezes
@@ -128,9 +128,21 @@ function canUndo() {
     return history.length > 0;
 }
 
+// MÁGICA AQUI: O reset agora preserva as configurações de Min/Máx
 function resetState() {
+    // 1. Pega o estado atual para salvar as configurações
+    const currentState = loadState();
+    const savedRange = currentState.range || { min: 1, max: 75 };
+
+    // 2. Cria um estado zeradinho
+    const newState = JSON.parse(JSON.stringify(defaultState));
+
+    // 3. Devolve a sua configuração de Min/Máx salva
+    newState.range = savedRange;
+
+    // 4. Salva o novo estado
     localStorage.setItem(HISTORY_KEY, '[]');
-    saveState(defaultState);
+    saveState(newState);
     window.dispatchEvent(new Event('local-history-change'));
 }
 

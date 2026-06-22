@@ -48,35 +48,38 @@ if (!window.__ADMIN_JS_LOADED__) {
             });
         }
 
+        // Modais Reestilizadas com UX aprimorada
         function showAlert(message) {
             return showModal(`
-                <h3>Aviso</h3>
-                <p>${message}</p>
-                <div class="modal-buttons">
-                    <button class="btn btn-primary" data-action="ok">OK</button>
+                <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Aviso</h3>
+                <p style="margin-bottom: 1.5rem; color: var(--muted-color); font-size: 0.95rem;">${message}</p>
+                <div class="modal-buttons" style="display: flex; justify-content: flex-end;">
+                    <button class="btn" data-action="ok" style="padding: 0.6rem 1.5rem; font-size: 0.9rem; background-color: var(--primary-color); color: white; border: none;">OK</button>
                 </div>
             `);
         }
 
         function showConfirm(title, message) {
             return showModal(`
-                <h3>${title}</h3>
-                <p>${message}</p>
-                <div class="modal-buttons">
-                    <button class="btn" data-action="cancel">Cancelar</button>
-                    <button class="btn btn-danger" data-action="confirm">Confirmar</button>
+                <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">${title}</h3>
+                <p style="margin-bottom: 1.5rem; color: var(--muted-color); font-size: 0.95rem;">${message}</p>
+                <div class="modal-buttons" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button class="btn" data-action="cancel" style="padding: 0.6rem 1rem; font-size: 0.9rem;">Cancelar</button>
+                    <button class="btn btn-danger" data-action="confirm" style="padding: 0.6rem 1rem; font-size: 0.9rem;">Confirmar</button>
                 </div>
             `);
         }
 
         function showPrompt(title, message, defaultValue = '') {
             return showModal(`
-                <h3>${title}</h3>
-                <p>${message}</p>
-                <input type="text" class="form-control" value="${defaultValue}" autocomplete="off">
-                <div class="modal-buttons">
-                    <button class="btn" data-action="cancel">Cancelar</button>
-                    <button class="btn btn-primary" data-action="ok">Salvar</button>
+                <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">${title}</h3>
+                <p style="margin-bottom: 1rem; color: var(--muted-color); font-size: 0.95rem;">${message}</p>
+                <div style="margin-bottom: 1.5rem;">
+                    <input type="text" class="form-control" value="${defaultValue}" autocomplete="off" style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--bg-color); color: var(--text-color); font-size: 1.1rem; outline: none;">
+                </div>
+                <div class="modal-buttons" style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                    <button class="btn" data-action="cancel" style="padding: 0.6rem 1rem; font-size: 0.9rem;">Cancelar</button>
+                    <button class="btn" data-action="ok" style="padding: 0.6rem 1rem; font-size: 0.9rem; background-color: var(--primary-color); color: white; border: none;">Salvar</button>
                 </div>
             `);
         }
@@ -113,17 +116,20 @@ if (!window.__ADMIN_JS_LOADED__) {
                 chip.title = `Clique para editar o ${index + 1}º número sorteado`;
 
                 chip.addEventListener('click', async () => {
+                    // Modal reestilizada com Grid e inputs ajustados
                     const result = await showModal(`
-                        <h3>Número ${num} (Sorteio #${index + 1})</h3>
-                        <p>O que deseja fazer com este número?</p>
-                        <div style="margin-top:0.5rem;">
-                            <label style="font-size:0.85rem; color:var(--muted-color);">Substituir por:</label>
-                            <input type="number" class="form-control" placeholder="Novo número">
+                        <h3 style="margin-bottom: 0.5rem; font-size: 1.25rem;">Número ${num} <span style="font-size: 0.9rem; color: var(--muted-color); font-weight: normal;">(Sorteio #${index + 1})</span></h3>
+                        <p style="margin-bottom: 1rem; color: var(--muted-color); font-size: 0.95rem;">O que deseja fazer com este número?</p>
+                        
+                        <div style="background-color: var(--bg-color); padding: 1rem; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 1.5rem;">
+                            <label style="display: block; font-size: 0.85rem; color: var(--muted-color); margin-bottom: 0.5rem;">Substituir por um novo número:</label>
+                            <input type="number" class="form-control" placeholder="Ex: 42" style="width: 100%; padding: 0.75rem; border-radius: 6px; border: 1px solid var(--border-color); background-color: var(--panel-bg); color: var(--text-color); font-size: 1.1rem; outline: none; text-align: center;">
                         </div>
-                        <div class="modal-buttons" style="flex-wrap: wrap;">
-                            <button class="btn" data-action="cancel">Cancelar</button>
-                            <button class="btn btn-danger" data-action="delete">Apagar</button>
-                            <button class="btn btn-primary" data-action="replace">Substituir</button>
+
+                        <div class="modal-buttons" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem;">
+                            <button class="btn" data-action="cancel" style="padding: 0.75rem 0.5rem; font-size: 0.9rem;">Cancelar</button>
+                            <button class="btn btn-danger" data-action="delete" style="padding: 0.75rem 0.5rem; font-size: 0.9rem;">Apagar</button>
+                            <button class="btn" data-action="replace" style="padding: 0.75rem 0.5rem; font-size: 0.9rem; background-color: var(--primary-color); color: white; border: none;">Substituir</button>
                         </div>
                     `);
 

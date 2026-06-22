@@ -150,6 +150,11 @@ button:disabled {
     flex-direction: column;
     align-items: center;
     justify-content: center;
+    text-align: center;
+    /* FORÇA O TEXTO A FICAR NO MEIO */
+    padding: 2rem;
+    /* IMPEDE O TEXTO DE COLAR NAS BORDAS */
+    box-sizing: border-box;
     z-index: 9999;
     opacity: 0;
     pointer-events: none;
@@ -232,4 +237,94 @@ button:disabled {
     gap: 0.5rem;
     justify-content: flex-end;
     margin-top: 1rem;
+}
+
+/* =========================================
+   AJUSTES DE UX - PORTAL E INPUTS ADMIN
+   ========================================= */
+
+/* 1. Ajuste dos Cards do Portal (Versão Desktop) */
+.portal-card {
+    width: 320px !important;
+    /* Aumenta a largura para caber o texto */
+}
+
+.portal-card h2 {
+    white-space: nowrap !important;
+    /* Proíbe o título de quebrar a linha */
+}
+
+/* 2. Tamanho e Fonte do Input Manual */
+#input-manual {
+    font-size: 1.0rem !important;
+    padding: 0.5rem !important;
+    text-align: center !important;
+    border-radius: 8px !important;
+    border: 2px solid var(--primary-color) !important;
+    min-width: 100px !important;
+    height: 56px !important;
+    box-sizing: border-box !important;
+}
+
+/* Tamanho focado nos Inputs de Configuração (Min e Max) */
+#input-range-min,
+#input-range-max {
+    font-size: 1.5rem !important;
+    padding: 0.5rem !important;
+    text-align: center !important;
+    border-radius: 8px !important;
+    border: 2px solid var(--primary-color) !important;
+    width: 70px !important;
+    min-width: 70px !important;
+    height: 56px !important;
+    box-sizing: border-box !important;
+}
+
+/* Ajuste para o botão manual não quebrar o layout */
+#input-manual+button {
+    height: 56px !important;
+    font-size: 1.1rem !important;
+}
+
+/* 3. Correção da Posição dos Botões nas Rodadas Anteriores (Admin) */
+.closed-round-item {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 0.5rem !important;
+}
+
+.closed-round-item>div:first-child {
+    line-height: 1.3 !important;
+    width: 100% !important;
+}
+
+.closed-round-item>div:last-child {
+    width: 100% !important;
+    justify-content: flex-end !important;
+    /* Empurra os botões para a direita */
+}
+
+/* 4. Correção da Tela Principal (Portal) para Celulares */
+@media (max-width: 768px) {
+
+    body {
+        overflow-x: hidden;
+    }
+
+    .portal-links {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 1.5rem !important;
+        width: 100% !important;
+        padding: 0 1.5rem !important;
+        box-sizing: border-box !important;
+    }
+
+    .portal-card {
+        width: 100% !important;
+        max-width: 320px !important;
+        padding: 2rem !important;
+        box-sizing: border-box !important;
+    }
 }
