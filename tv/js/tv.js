@@ -1,4 +1,7 @@
-// tv.js
+// tv/js/tv.js
+
+// Memória local da TV para saber qual foi a última animação reproduzida
+let lastAnimatedEvent = null;
 
 function renderTV() {
     const state = loadState();
@@ -79,26 +82,35 @@ function renderTV() {
         closedRoundsContainer.appendChild(div);
     });
 
-    // 5. Handle Overlay (Ajustado para 5 segundos)
+    // 5. Handle Overlay (Protegido contra falhas de Relógio/Firebase)
     const overlay = document.getElementById('tv-overlay');
     const uiEvents = state.uiEvents || [];
     const lastEvent = uiEvents[uiEvents.length - 1];
 
     if (lastEvent && lastEvent.type === 'round_closed') {
-        const elapsed = Date.now() - lastEvent.timestamp;
 
-        // 5000 = 5 Segundos
-        if (elapsed < 5000) {
-            document.getElementById('overlay-title').textContent = lastEvent.roundName;
-            document.getElementById('overlay-count').textContent = `${lastEvent.count} números sorteados`;
-            overlay.classList.add('visible');
+        // Se ainda não mostramos essa animação
+        if (lastAnimatedEvent !== lastEvent.timestamp) {
 
-            // Esconde automaticamente depois que os 5 segundos passarem
-            setTimeout(() => {
-                overlay.classList.remove('visible');
-            }, 5000 - elapsed);
-        } else {
-            overlay.classList.remove('visible');
+            const elapsed = Date.now() - lastEvent.timestamp;
+
+            // Usamos Math.abs() porque o relógio do Admin pode estar "no futuro" em relação à TV.
+            // Se o evento aconteceu há menos de 1 minuto, exibe. (Isso evita que o pop-up surja se você der F5 na TV meia hora depois).
+            if (Math.abs(elapsed) < 60000) {
+
+                // Grava na memória que já viu esse evento
+                lastAnimatedEvent = lastEvent.timestamp;
+
+                document.getElementById('overlay-title').textContent = lastEvent.roundName;
+                document.getElementById('overlay-count').textContent = `${lastEvent.count} números sorteados`;
+
+                overlay.classList.add('visible');
+
+                // Esconde cravado em 5 segundos redondos, sem contas matemáticas malucas
+                setTimeout(() => {
+                    overlay.classList.remove('visible');
+                }, 5000);
+            }
         }
     } else {
         overlay.classList.remove('visible');
