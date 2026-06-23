@@ -4,159 +4,85 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BINGOLÃO - TV</title>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0f172a">
+    <title>TV - BINGOLÃO</title>
     <link rel="stylesheet" href="../shared/css/style.css">
-    <link rel="manifest" href="manifest.json">
     <style>
         body {
+            background-color: #0d1321;
+            /* Azul escuro do fundo */
             overflow: hidden;
-            /* Prevent scroll on TV */
-            display: flex;
-            height: 100vh;
+            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0;
+            padding: 0;
         }
 
         .tv-layout {
             display: flex;
-            width: 100%;
-            height: 100%;
-        }
-
-        .main-display {
-            flex: 2;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            border-right: 2px solid var(--border-color);
-            position: relative;
-        }
-
-        .round-title {
-            position: absolute;
-            top: 2rem;
-            font-size: 3rem;
-            color: #ffffff;
-            /* AJUSTADO PARA BRANCO PURO */
-            text-transform: uppercase;
-            letter-spacing: 2px;
-        }
-
-        .current-number {
-            font-size: 25rem;
-            font-weight: 900;
-            color: var(--primary-color);
-            line-height: 1;
-            text-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
-        }
-
-        .current-number.empty {
-            font-size: 8rem;
-            color: var(--muted-color);
-            text-shadow: none;
-        }
-
-        .side-panel {
-            flex: 1;
-            background-color: var(--panel-bg);
-            padding: 2rem;
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-            overflow-y: auto;
-        }
-
-        .panel-section-title {
-            font-size: 1.5rem;
-            color: #ffffff;
-            /* AJUSTADO PARA BRANCO PURO */
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .current-numbers-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .small-number {
-            background-color: var(--bg-color);
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 8px;
-            font-weight: 800;
-            font-size: 1.2rem;
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            transition: all 0.3s ease;
-        }
-
-        /* Destaque padrão do jogo normal (último número) */
-        .small-number.highlight {
-            background-color: var(--primary-dark);
-            color: white;
-            border-color: var(--primary-color);
-        }
-
-        /* Destaque em VERDE durante a conferência (Inspirado no TV.png) */
-        .small-number.card-matched {
-            background-color: #20c978;
-            border-color: #1aa361;
-            color: white;
-        }
-
-        .closed-round {
-            background-color: var(--bg-color);
-            padding: 1rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            border: 1px solid var(--border-color);
-        }
-
-        .closed-round-header {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-
-        .closed-round-title {
-            font-weight: 800;
-            color: var(--secondary-color);
-        }
-
-        .closed-round-count {
-            color: var(--muted-color);
-            font-size: 0.9rem;
-        }
-
-        .closed-round-numbers {
-            color: var(--text-color);
-            font-family: monospace;
-            font-size: 1.1rem;
-            line-height: 1.5;
+            height: 100vh;
+            padding: 2.5rem;
+            gap: 4rem;
+            box-sizing: border-box;
         }
 
         /* =========================================
-           UX DA CARTELA DE CONFERÊNCIA
+           LADO ESQUERDO (Imune ao Zoom)
            ========================================= */
+        .tv-left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* O título tem sua caixinha reservada, não flutua mais */
+        .tv-title-wrapper {
+            height: 15vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tv-title {
+            font-size: 3.5rem;
+            /* Isso sofre zoom normalmente */
+            font-weight: 900;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+            text-align: center;
+        }
+
+        /* O contêiner do centro protege os itens */
+        .tv-center-wrapper {
+            height: 85vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        /* Usando 'vh' o número fica cravado na altura da tela, ignorando o zoom */
+        .tv-big-number {
+            font-size: 55vh;
+            font-weight: 900;
+            line-height: 1;
+            color: white;
+            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        /* Cartela blindada em 'vh' */
         .tv-card-container {
             display: none;
             grid-template-columns: repeat(5, 1fr);
-            gap: 12px;
-            background-color: var(--panel-bg);
-            padding: 2rem;
-            border-radius: 12px;
-            border: 2px solid var(--border-color);
-            width: 100%;
-            max-width: 600px;
+            gap: 1.5vh;
+            background-color: #172136;
+            padding: 2.5vh;
+            border-radius: 1.5vh;
+            border: 0.4vh solid #25334d;
+            width: 75vh;
+            /* Força ser quadrada com base na altura da TV */
+            max-width: 100%;
         }
 
         .tv-card-container.visible {
@@ -168,56 +94,139 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 3rem;
+            font-size: 5vh;
             font-weight: 900;
-            background-color: var(--bg-color);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            color: var(--text-color);
-            transition: all 0.3s;
+            background-color: #0d1321;
+            border: 0.2vh solid #334155;
+            border-radius: 1vh;
+            color: white;
+            transition: background-color 0.3s;
         }
 
         .tv-card-cell.matched {
             background-color: #20c978;
-            /* Verde do TV.png */
             border-color: #1aa361;
             color: white;
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(32, 201, 120, 0.3);
+        }
+
+        /* =========================================
+           LADO DIREITO (Reativo ao Zoom)
+           ========================================= */
+        .tv-right {
+            width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 2.5rem;
+            max-width: 40vw;
+            /* Garante que a lista não amasse a esquerda no super-zoom */
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 900;
+            color: white;
+            margin-top: 0;
+            margin-bottom: 1.2rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .drawn-chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+        }
+
+        .drawn-chip {
+            background-color: #172136;
+            border: 1px solid #25334d;
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 800;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: background-color 0.3s, border-color 0.3s;
+        }
+
+        .drawn-chip.highlight {
+            background-color: #20c978;
+            border-color: #1aa361;
+        }
+
+        .previous-rounds-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .round-card {
+            background-color: #172136;
+            border: 1px solid #25334d;
+            border-radius: 8px;
+            padding: 1.2rem;
+        }
+
+        .round-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.8rem;
+        }
+
+        .round-card-title {
+            color: #60a5fa;
+            font-weight: 800;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        .round-card-count {
+            color: #94a3b8;
+            font-size: 0.85rem;
+        }
+
+        .round-card-numbers {
+            color: white;
+            font-size: 0.95rem;
+            word-spacing: 8px;
+            font-weight: 600;
         }
     </style>
 </head>
 
 <body>
     <div class="tv-layout">
-        <div class="main-display">
-            <div class="round-title" id="tv-round-title">AGUARDANDO...</div>
+        <div class="tv-left">
+            <div class="tv-title-wrapper">
+                <h1 class="tv-title" id="tv-round-name">BINGO</h1>
+            </div>
 
-            <!-- NÚMERO GRANDÃO NORMAL -->
-            <div class="current-number empty" id="tv-current-number">--</div>
+            <div class="tv-center-wrapper">
+                <div class="tv-big-number" id="tv-last-number">--</div>
 
-            <!-- CARTELA DE AUDITORIA (Oculta por padrão) -->
-            <div id="tv-review-card" class="tv-card-container"></div>
+                <div id="tv-review-card" class="tv-card-container"></div>
+            </div>
         </div>
-        <div class="side-panel">
+
+        <div class="tv-right">
             <div>
-                <h3 class="panel-section-title">NÚMEROS SORTEADOS</h3>
-                <div class="current-numbers-grid" id="tv-current-numbers-grid">
+                <h2 class="section-title">NÚMEROS SORTEADOS</h2>
+                <div class="drawn-chips-container" id="tv-drawn-numbers">
                 </div>
             </div>
 
-            <div style="flex: 1;">
-                <h3 class="panel-section-title">RODADAS ANTERIORES</h3>
-                <div id="tv-closed-rounds">
+            <div style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+                <h2 class="section-title">RODADAS ANTERIORES</h2>
+                <div class="previous-rounds-container" id="tv-previous-rounds">
                 </div>
             </div>
         </div>
-    </div>
-
-    <div id="tv-overlay" class="tv-overlay">
-        <h1>🏆 RODADA ENCERRADA</h1>
-        <h2 id="overlay-title">--</h2>
-        <p id="overlay-count">-- números sorteados</p>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
