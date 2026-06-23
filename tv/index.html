@@ -13,82 +13,159 @@
     <link rel="manifest" href="manifest.json">
     <style>
         body {
-            background-color: #0d1321;
             overflow: hidden;
-            font-family: 'Inter', -apple-system, sans-serif;
-            margin: 0;
-            padding: 0;
+            /* Prevent scroll on TV */
+            display: flex;
             height: 100vh;
         }
 
         .tv-layout {
             display: flex;
-            height: 100vh;
-            padding: 2.5rem;
-            gap: 4rem;
-            box-sizing: border-box;
+            width: 100%;
+            height: 100%;
         }
 
-        /* =========================================
-           LADO ESQUERDO (Imune ao Zoom com vh)
-           ========================================= */
         .main-display {
-            flex: 1;
+            flex: 2;
             display: flex;
             flex-direction: column;
-        }
-
-        .tv-title-wrapper {
-            height: 15vh;
-            display: flex;
             align-items: center;
             justify-content: center;
+            border-right: 2px solid var(--border-color);
+            position: relative;
         }
 
         .round-title {
-            font-size: 3.5rem;
-            font-weight: 900;
+            position: absolute;
+            top: 2rem;
+            font-size: 3rem;
             color: #ffffff;
+            /* AJUSTADO PARA BRANCO PURO */
             text-transform: uppercase;
             letter-spacing: 2px;
-            margin: 0;
-            text-align: center;
         }
 
-        .tv-center-wrapper {
-            height: 85vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-        }
-
+        /* BLOQUEIO DE ZOOM: font-size em vh */
         .current-number {
-            font-size: 55vh;
+            font-size: 40vh;
+            /* Substitui o 25rem */
             font-weight: 900;
-            line-height: 1;
             color: var(--primary-color);
-            text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            text-align: center;
+            line-height: 1;
+            text-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
         }
 
+        /* BLOQUEIO DE ZOOM: font-size em vh */
         .current-number.empty {
-            font-size: 15vh;
+            font-size: 12vh;
+            /* Substitui o 8rem */
             color: var(--muted-color);
             text-shadow: none;
         }
 
-        /* Cartela de Auditoria blindada em vh */
+        .side-panel {
+            flex: 1;
+            background-color: var(--panel-bg);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            overflow-y: auto;
+        }
+
+        .panel-section-title {
+            font-size: 1.5rem;
+            color: #ffffff;
+            /* AJUSTADO PARA BRANCO PURO */
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .current-numbers-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .small-number {
+            background-color: var(--bg-color);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        /* Destaque padrão do jogo normal (último número) */
+        .small-number.highlight {
+            background-color: var(--primary-dark);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        /* Destaque em VERDE durante a conferência (Inspirado no TV.png) */
+        .small-number.card-matched {
+            background-color: #20c978;
+            border-color: #1aa361;
+            color: white;
+        }
+
+        .closed-round {
+            background-color: var(--bg-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .closed-round-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .closed-round-title {
+            font-weight: 800;
+            color: var(--secondary-color);
+        }
+
+        .closed-round-count {
+            color: var(--muted-color);
+            font-size: 0.9rem;
+        }
+
+        .closed-round-numbers {
+            color: var(--text-color);
+            font-family: monospace;
+            font-size: 1.1rem;
+            line-height: 1.5;
+        }
+
+        /* =========================================
+           UX DA CARTELA DE CONFERÊNCIA
+           BLOQUEIO DE ZOOM: medidas em vh
+           ========================================= */
         .tv-card-container {
             display: none;
             grid-template-columns: repeat(5, 1fr);
             gap: 1.5vh;
-            background-color: #172136;
-            padding: 2.5vh;
+            /* Substitui 12px */
+            background-color: var(--panel-bg);
+            padding: 3vh;
+            /* Substitui 2rem */
             border-radius: 1.5vh;
-            border: 0.4vh solid #25334d;
-            width: 75vh;
-            max-width: 100%;
+            /* Substitui 12px */
+            border: 2px solid var(--border-color);
+            width: 65vh;
+            /* Substitui max-width 600px */
+            max-width: 90%;
         }
 
         .tv-card-container.visible {
@@ -101,153 +178,23 @@
             align-items: center;
             justify-content: center;
             font-size: 5vh;
+            /* Substitui 3rem */
             font-weight: 900;
-            background-color: #0d1321;
-            border: 0.2vh solid #334155;
+            background-color: var(--bg-color);
+            border: 2px solid var(--border-color);
             border-radius: 1vh;
-            color: #ffffff;
-            transition: background-color 0.3s;
+            /* Substitui 8px */
+            color: var(--text-color);
+            transition: all 0.3s;
         }
 
         .tv-card-cell.matched {
             background-color: #20c978;
+            /* Verde do TV.png */
             border-color: #1aa361;
             color: white;
-        }
-
-        /* =========================================
-           LADO DIREITO (Reativo ao Zoom)
-           ========================================= */
-        .side-panel {
-            width: 500px;
-            display: flex;
-            flex-direction: column;
-            gap: 2.5rem;
-            max-width: 40vw;
-        }
-
-        .panel-section-title {
-            font-size: 1.4rem;
-            font-weight: 900;
-            color: #ffffff;
-            margin-top: 0;
-            margin-bottom: 1.2rem;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 0.5rem;
-        }
-
-        .current-numbers-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.6rem;
-        }
-
-        .small-number {
-            background-color: #172136;
-            border: 1px solid #25334d;
-            color: white;
-            font-size: 1.25rem;
-            font-weight: 800;
-            width: 48px;
-            height: 48px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            transition: all 0.3s ease;
-        }
-
-        .small-number.highlight {
-            background-color: var(--primary-dark);
-            border-color: var(--primary-color);
-        }
-
-        .small-number.card-matched {
-            background-color: #20c978;
-            border-color: #1aa361;
-            color: white;
-        }
-
-        .closed-round {
-            background-color: #172136;
-            border: 1px solid #25334d;
-            border-radius: 8px;
-            padding: 1.2rem;
-            margin-bottom: 1rem;
-        }
-
-        .closed-round-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.8rem;
-        }
-
-        .closed-round-title {
-            color: #60a5fa;
-            font-weight: 800;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-        }
-
-        .closed-round-count {
-            color: #94a3b8;
-            font-size: 0.85rem;
-        }
-
-        .closed-round-numbers {
-            color: white;
-            font-family: monospace;
-            font-size: 1.1rem;
-            line-height: 1.5;
-            word-spacing: 5px;
-        }
-
-        .tv-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background-color: var(--primary-color);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-            padding: 2rem;
-            box-sizing: border-box;
-            z-index: 9999;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease-in-out;
-        }
-
-        .tv-overlay.visible {
-            opacity: 1;
-            pointer-events: all;
-        }
-
-        .tv-overlay h1 {
-            font-size: 5rem;
-            margin-bottom: 1rem;
-            text-transform: uppercase;
-            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-
-        .tv-overlay h2 {
-            font-size: 10rem;
-            margin-bottom: 2rem;
-            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-        }
-
-        .tv-overlay p {
-            font-size: 3rem;
-            font-weight: 600;
-            opacity: 0.9;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(32, 201, 120, 0.3);
         }
     </style>
 </head>
@@ -255,25 +202,25 @@
 <body>
     <div class="tv-layout">
         <div class="main-display">
-            <div class="tv-title-wrapper">
-                <div class="round-title" id="tv-round-title">AGUARDANDO...</div>
-            </div>
+            <div class="round-title" id="tv-round-title">AGUARDANDO...</div>
 
-            <div class="tv-center-wrapper">
-                <div class="current-number empty" id="tv-current-number">--</div>
-                <div id="tv-review-card" class="tv-card-container"></div>
-            </div>
+            <!-- NÚMERO GRANDÃO NORMAL -->
+            <div class="current-number empty" id="tv-current-number">--</div>
+
+            <!-- CARTELA DE AUDITORIA (Oculta por padrão) -->
+            <div id="tv-review-card" class="tv-card-container"></div>
         </div>
-
         <div class="side-panel">
             <div>
                 <h3 class="panel-section-title">NÚMEROS SORTEADOS</h3>
-                <div class="current-numbers-grid" id="tv-current-numbers-grid"></div>
+                <div class="current-numbers-grid" id="tv-current-numbers-grid">
+                </div>
             </div>
 
-            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+            <div style="flex: 1;">
                 <h3 class="panel-section-title">RODADAS ANTERIORES</h3>
-                <div id="tv-closed-rounds" style="overflow-y: auto; flex: 1;"></div>
+                <div id="tv-closed-rounds">
+                </div>
             </div>
         </div>
     </div>
