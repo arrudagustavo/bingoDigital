@@ -4,16 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TV - BINGOLÃO</title>
+    <title>BINGOLÃO - TV</title>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#0f172a">
     <link rel="stylesheet" href="../shared/css/style.css">
+    <link rel="manifest" href="manifest.json">
     <style>
         body {
             background-color: #0d1321;
-            /* Azul escuro do fundo */
             overflow: hidden;
             font-family: 'Inter', -apple-system, sans-serif;
             margin: 0;
             padding: 0;
+            height: 100vh;
         }
 
         .tv-layout {
@@ -25,15 +30,14 @@
         }
 
         /* =========================================
-           LADO ESQUERDO (Imune ao Zoom)
+           LADO ESQUERDO (Imune ao Zoom com vh)
            ========================================= */
-        .tv-left {
+        .main-display {
             flex: 1;
             display: flex;
             flex-direction: column;
         }
 
-        /* O título tem sua caixinha reservada, não flutua mais */
         .tv-title-wrapper {
             height: 15vh;
             display: flex;
@@ -41,18 +45,16 @@
             justify-content: center;
         }
 
-        .tv-title {
+        .round-title {
             font-size: 3.5rem;
-            /* Isso sofre zoom normalmente */
             font-weight: 900;
-            color: white;
+            color: #ffffff;
             text-transform: uppercase;
             letter-spacing: 2px;
             margin: 0;
             text-align: center;
         }
 
-        /* O contêiner do centro protege os itens */
         .tv-center-wrapper {
             height: 85vh;
             display: flex;
@@ -61,17 +63,22 @@
             width: 100%;
         }
 
-        /* Usando 'vh' o número fica cravado na altura da tela, ignorando o zoom */
-        .tv-big-number {
+        .current-number {
             font-size: 55vh;
             font-weight: 900;
             line-height: 1;
-            color: white;
+            color: var(--primary-color);
             text-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
 
-        /* Cartela blindada em 'vh' */
+        .current-number.empty {
+            font-size: 15vh;
+            color: var(--muted-color);
+            text-shadow: none;
+        }
+
+        /* Cartela de Auditoria blindada em vh */
         .tv-card-container {
             display: none;
             grid-template-columns: repeat(5, 1fr);
@@ -81,7 +88,6 @@
             border-radius: 1.5vh;
             border: 0.4vh solid #25334d;
             width: 75vh;
-            /* Força ser quadrada com base na altura da TV */
             max-width: 100%;
         }
 
@@ -99,7 +105,7 @@
             background-color: #0d1321;
             border: 0.2vh solid #334155;
             border-radius: 1vh;
-            color: white;
+            color: #ffffff;
             transition: background-color 0.3s;
         }
 
@@ -112,32 +118,33 @@
         /* =========================================
            LADO DIREITO (Reativo ao Zoom)
            ========================================= */
-        .tv-right {
+        .side-panel {
             width: 500px;
             display: flex;
             flex-direction: column;
             gap: 2.5rem;
             max-width: 40vw;
-            /* Garante que a lista não amasse a esquerda no super-zoom */
         }
 
-        .section-title {
+        .panel-section-title {
             font-size: 1.4rem;
             font-weight: 900;
-            color: white;
+            color: #ffffff;
             margin-top: 0;
             margin-bottom: 1.2rem;
             text-transform: uppercase;
             letter-spacing: 1px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.5rem;
         }
 
-        .drawn-chips-container {
+        .current-numbers-grid {
             display: flex;
             flex-wrap: wrap;
             gap: 0.6rem;
         }
 
-        .drawn-chip {
+        .small-number {
             background-color: #172136;
             border: 1px solid #25334d;
             color: white;
@@ -149,84 +156,132 @@
             align-items: center;
             justify-content: center;
             border-radius: 6px;
-            transition: background-color 0.3s, border-color 0.3s;
+            transition: all 0.3s ease;
         }
 
-        .drawn-chip.highlight {
+        .small-number.highlight {
+            background-color: var(--primary-dark);
+            border-color: var(--primary-color);
+        }
+
+        .small-number.card-matched {
             background-color: #20c978;
             border-color: #1aa361;
+            color: white;
         }
 
-        .previous-rounds-container {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            overflow-y: auto;
-            flex: 1;
-        }
-
-        .round-card {
+        .closed-round {
             background-color: #172136;
             border: 1px solid #25334d;
             border-radius: 8px;
             padding: 1.2rem;
+            margin-bottom: 1rem;
         }
 
-        .round-card-header {
+        .closed-round-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 0.8rem;
         }
 
-        .round-card-title {
+        .closed-round-title {
             color: #60a5fa;
             font-weight: 800;
             font-size: 0.85rem;
             text-transform: uppercase;
         }
 
-        .round-card-count {
+        .closed-round-count {
             color: #94a3b8;
             font-size: 0.85rem;
         }
 
-        .round-card-numbers {
+        .closed-round-numbers {
             color: white;
-            font-size: 0.95rem;
-            word-spacing: 8px;
+            font-family: monospace;
+            font-size: 1.1rem;
+            line-height: 1.5;
+            word-spacing: 5px;
+        }
+
+        .tv-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: var(--primary-color);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+            box-sizing: border-box;
+            z-index: 9999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+        }
+
+        .tv-overlay.visible {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .tv-overlay h1 {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .tv-overlay h2 {
+            font-size: 10rem;
+            margin-bottom: 2rem;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .tv-overlay p {
+            font-size: 3rem;
             font-weight: 600;
+            opacity: 0.9;
         }
     </style>
 </head>
 
 <body>
     <div class="tv-layout">
-        <div class="tv-left">
+        <div class="main-display">
             <div class="tv-title-wrapper">
-                <h1 class="tv-title" id="tv-round-name">BINGO</h1>
+                <div class="round-title" id="tv-round-title">AGUARDANDO...</div>
             </div>
 
             <div class="tv-center-wrapper">
-                <div class="tv-big-number" id="tv-last-number">--</div>
-
+                <div class="current-number empty" id="tv-current-number">--</div>
                 <div id="tv-review-card" class="tv-card-container"></div>
             </div>
         </div>
 
-        <div class="tv-right">
+        <div class="side-panel">
             <div>
-                <h2 class="section-title">NÚMEROS SORTEADOS</h2>
-                <div class="drawn-chips-container" id="tv-drawn-numbers">
-                </div>
+                <h3 class="panel-section-title">NÚMEROS SORTEADOS</h3>
+                <div class="current-numbers-grid" id="tv-current-numbers-grid"></div>
             </div>
 
-            <div style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
-                <h2 class="section-title">RODADAS ANTERIORES</h2>
-                <div class="previous-rounds-container" id="tv-previous-rounds">
-                </div>
+            <div style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
+                <h3 class="panel-section-title">RODADAS ANTERIORES</h3>
+                <div id="tv-closed-rounds" style="overflow-y: auto; flex: 1;"></div>
             </div>
         </div>
+    </div>
+
+    <div id="tv-overlay" class="tv-overlay">
+        <h1>🏆 RODADA ENCERRADA</h1>
+        <h2 id="overlay-title">--</h2>
+        <p id="overlay-count">-- números sorteados</p>
     </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
