@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-PT">
 
 <head>
     <meta charset="UTF-8">
@@ -54,13 +54,22 @@
             position: relative;
         }
 
+        /* TÍTULO AJUSTADO PARA EVITAR SOBREPOSIÇÃO */
         .round-title {
             position: absolute;
-            top: 2rem;
+            top: 5rem;
+            /* Aumentado de 2rem para 5rem para desviar do botão */
             font-size: 3rem;
             color: #ffffff;
             text-transform: uppercase;
             letter-spacing: 2px;
+            width: 100%;
+            /* Ocupa a largura total da área */
+            text-align: center;
+            /* Mantém centrado */
+            padding: 0 1rem;
+            box-sizing: border-box;
+            z-index: 10;
         }
 
         .current-number {
