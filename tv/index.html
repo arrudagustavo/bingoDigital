@@ -14,9 +14,28 @@
     <style>
         body {
             overflow: hidden;
-            /* Prevent scroll on TV */
             display: flex;
             height: 100vh;
+            background-color: var(--bg-color);
+        }
+
+        /* BOTÃO VOLTAR DISCRETO NA TV */
+        .btn-back-tv {
+            position: absolute;
+            top: 1.5rem;
+            left: 1.5rem;
+            color: rgba(255, 255, 255, 0.4);
+            text-decoration: none;
+            font-size: 1rem;
+            font-weight: 800;
+            z-index: 1000;
+            transition: color 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn-back-tv:hover {
+            color: #ffffff;
         }
 
         .tv-layout {
@@ -40,25 +59,20 @@
             top: 2rem;
             font-size: 3rem;
             color: #ffffff;
-            /* AJUSTADO PARA BRANCO PURO */
             text-transform: uppercase;
             letter-spacing: 2px;
         }
 
-        /* BLOQUEIO DE ZOOM: font-size em vh */
         .current-number {
             font-size: 40vh;
-            /* Substitui o 25rem */
             font-weight: 900;
             color: var(--primary-color);
             line-height: 1;
             text-shadow: 0 0 40px rgba(16, 185, 129, 0.2);
         }
 
-        /* BLOQUEIO DE ZOOM: font-size em vh */
         .current-number.empty {
             font-size: 12vh;
-            /* Substitui o 8rem */
             color: var(--muted-color);
             text-shadow: none;
         }
@@ -76,7 +90,6 @@
         .panel-section-title {
             font-size: 1.5rem;
             color: #ffffff;
-            /* AJUSTADO PARA BRANCO PURO */
             border-bottom: 2px solid var(--border-color);
             padding-bottom: 0.5rem;
             margin-bottom: 1rem;
@@ -103,14 +116,12 @@
             transition: all 0.3s ease;
         }
 
-        /* Destaque padrão do jogo normal (último número) */
         .small-number.highlight {
             background-color: var(--primary-dark);
             color: white;
             border-color: var(--primary-color);
         }
 
-        /* Destaque em VERDE durante a conferência (Inspirado no TV.png) */
         .small-number.card-matched {
             background-color: #20c978;
             border-color: #1aa361;
@@ -148,23 +159,15 @@
             line-height: 1.5;
         }
 
-        /* =========================================
-           UX DA CARTELA DE CONFERÊNCIA
-           BLOQUEIO DE ZOOM: medidas em vh
-           ========================================= */
         .tv-card-container {
             display: none;
             grid-template-columns: repeat(5, 1fr);
             gap: 1.5vh;
-            /* Substitui 12px */
             background-color: var(--panel-bg);
             padding: 3vh;
-            /* Substitui 2rem */
             border-radius: 1.5vh;
-            /* Substitui 12px */
             border: 2px solid var(--border-color);
             width: 65vh;
-            /* Substitui max-width 600px */
             max-width: 90%;
         }
 
@@ -178,19 +181,16 @@
             align-items: center;
             justify-content: center;
             font-size: 5vh;
-            /* Substitui 3rem */
             font-weight: 900;
             background-color: var(--bg-color);
             border: 2px solid var(--border-color);
             border-radius: 1vh;
-            /* Substitui 8px */
             color: var(--text-color);
             transition: all 0.3s;
         }
 
         .tv-card-cell.matched {
             background-color: #20c978;
-            /* Verde do TV.png */
             border-color: #1aa361;
             color: white;
             transform: scale(1.05);
@@ -200,14 +200,13 @@
 </head>
 
 <body>
+    <!-- Botão de Voltar -->
+    <a href="../index.html" class="btn-back-tv">⬅ Voltar ao Menu</a>
+
     <div class="tv-layout">
         <div class="main-display">
             <div class="round-title" id="tv-round-title">AGUARDANDO...</div>
-
-            <!-- NÚMERO GRANDÃO NORMAL -->
             <div class="current-number empty" id="tv-current-number">--</div>
-
-            <!-- CARTELA DE AUDITORIA (Oculta por padrão) -->
             <div id="tv-review-card" class="tv-card-container"></div>
         </div>
         <div class="side-panel">

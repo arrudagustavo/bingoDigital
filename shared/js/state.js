@@ -1,7 +1,5 @@
 // shared/js/state.js
-// Um estado global simples baseado em um único JSON (Single Source of Truth)
 
-// MÁGICA ANTI-DUPLICIDADE: Impede que o Firebase tente se conectar duas vezes
 if (!window.__FIREBASE_INIT__) {
     window.__FIREBASE_INIT__ = true;
 
@@ -39,14 +37,13 @@ const defaultState = {
     ],
     auditLog: [],
     uiEvents: [],
-    checkingCard: null // <-- NOVO: Estado inicial da cartela de conferência
+    checkingCard: null
 };
 
-// VACINA CONTRA O FIREBASE: Garante que os dados nunca venham quebrados
+// Garante que os dados do Firebase não quebrem a aplicação local
 function sanitizeState(state) {
     if (!state) return JSON.parse(JSON.stringify(defaultState));
 
-    // Garante que drawnNumbers é sempre um Array (Firebase às vezes converte em objeto)
     let safeDrawnNumbers = [];
     if (Array.isArray(state.drawnNumbers)) {
         safeDrawnNumbers = state.drawnNumbers;
@@ -60,7 +57,7 @@ function sanitizeState(state) {
         auditLog: state.auditLog || [],
         uiEvents: state.uiEvents || [],
         rounds: state.rounds || [],
-        checkingCard: state.checkingCard || null // <-- NOVO: Permite que a cartela viaje pela nuvem
+        checkingCard: state.checkingCard || null
     };
 
     if (safeState.rounds.length === 0) {
@@ -85,15 +82,15 @@ function loadState() {
 function saveState(state) {
     const safeState = sanitizeState(state);
 
-    // 1. Salva no navegador local (Sincroniza abas do mesmo aparelho)
+    // 1. Salva localmente
     localStorage.setItem(STORAGE_KEY, JSON.stringify(safeState));
     window.dispatchEvent(new Event('local-state-change'));
 
-    // 2. Envia TUDO (inclusive a conferência) para o Firebase (Sincroniza Celular <-> PC)
+    // 2. Envia para a nuvem (Sincroniza Celular -> TV)
     DB_REF.set(safeState).catch(e => console.error("Erro Firebase:", e));
 }
 
-// Ouve o Firebase apenas UMA vez
+// Ouve as mudanças da nuvem em tempo real (TV escutando o Celular)
 if (!window.__FIREBASE_LISTENER__) {
     window.__FIREBASE_LISTENER__ = true;
     DB_REF.on('value', (snapshot) => {
@@ -102,7 +99,6 @@ if (!window.__FIREBASE_LISTENER__) {
             const safeCloudState = sanitizeState(cloudState);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(safeCloudState));
             window.dispatchEvent(new Event('local-state-change'));
-            window.dispatchEvent(new Event('storage'));
         }
     });
 }
@@ -121,9 +117,7 @@ function undoLastAction() {
 
     const previousState = history.pop();
     localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-
     saveState(previousState);
-
     window.dispatchEvent(new Event('local-history-change'));
     return true;
 }
@@ -133,19 +127,12 @@ function canUndo() {
     return history.length > 0;
 }
 
-// MÁGICA AQUI: O reset agora preserva as configurações de Min/Máx
 function resetState() {
-    // 1. Pega o estado atual para salvar as configurações
     const currentState = loadState();
     const savedRange = currentState.range || { min: 1, max: 75 };
-
-    // 2. Cria um estado zeradinho
     const newState = JSON.parse(JSON.stringify(defaultState));
-
-    // 3. Devolve a sua configuração de Min/Máx salva
     newState.range = savedRange;
 
-    // 4. Salva o novo estado
     localStorage.setItem(HISTORY_KEY, '[]');
     saveState(newState);
     window.dispatchEvent(new Event('local-history-change'));

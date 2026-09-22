@@ -10,8 +10,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#0f172a">
 
+    <!-- CSS do Cropper (Ferramenta de Recorte) -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.css">
 
+    <!-- CSS Global -->
     <link rel="stylesheet" href="../shared/css/style.css">
     <link rel="manifest" href="manifest.json">
 
@@ -20,11 +22,9 @@
             background-color: var(--bg-color);
         }
 
-        /* Classe que trava o scroll do fundo no Mobile */
         body.no-scroll {
             overflow: hidden !important;
             touch-action: none;
-            /* Desativa a ação de toque no corpo */
         }
 
         .admin-container {
@@ -37,8 +37,26 @@
             min-height: 100vh;
         }
 
+        /* Cabeçalho Ajustado com Botão Voltar */
         .header {
-            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 0.5rem 0;
+        }
+
+        .btn-back-admin {
+            position: absolute;
+            left: 0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .header h2 {
+            margin: 0;
+            font-size: 1.4rem;
         }
 
         .round-info {
@@ -150,7 +168,6 @@
             border-bottom: none;
         }
 
-        /* Modais */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -166,7 +183,6 @@
             pointer-events: none;
             transition: opacity 0.2s ease;
             overscroll-behavior: none;
-            /* Trava o vazamento de scroll para o corpo no iOS */
         }
 
         .modal-overlay.visible {
@@ -174,7 +190,6 @@
             pointer-events: all;
         }
 
-        /* Estrutura Responsiva da Modal */
         .modal-content {
             background-color: var(--panel-bg);
             padding: 1.5rem;
@@ -187,7 +202,6 @@
             flex-direction: column;
             color: var(--text-color);
             touch-action: auto;
-            /* Permite toques internos */
         }
 
         .modal-content h3 {
@@ -211,10 +225,6 @@
             margin-top: 1rem;
             flex-shrink: 0;
         }
-
-        /* =========================================
-           UX EXCLUSIVA DA TELA DE CONFERÊNCIA
-           ========================================= */
 
         .ocr-cartela-grid {
             display: grid;
@@ -272,8 +282,6 @@
             border: 1px solid var(--border-color);
             text-align: left;
             margin-top: 0.5rem;
-
-            /* Hacks para scroll perfeito e travado no iOS */
             overscroll-behavior: contain;
             -webkit-overflow-scrolling: touch;
         }
@@ -352,8 +360,10 @@
 
 <body>
     <div class="admin-container">
+        <!-- HEADER COM BOTÃO VOLTAR -->
         <div class="header">
-            <h2>📱 Controle do Bingo</h2>
+            <a href="../index.html" class="btn btn-back-admin">⬅ Voltar</a>
+            <h2>📱 Controle</h2>
         </div>
 
         <div class="round-info">
@@ -390,8 +400,7 @@
 
         <div class="history-panel">
             <h3 style="color: white; font-size: 1rem;">Números Sorteados</h3>
-            <div class="history-grid" id="admin-history">
-            </div>
+            <div class="history-grid" id="admin-history"></div>
         </div>
 
         <div class="closed-rounds-panel">
@@ -429,11 +438,12 @@
         </div>
     </div>
 
+    <!-- MODAIS DO SISTEMA -->
     <div id="custom-modal-overlay" class="modal-overlay">
-        <div class="modal-content" id="modal-content-container">
-        </div>
+        <div class="modal-content" id="modal-content-container"></div>
     </div>
 
+    <!-- MODAL 1: CROP DA CARTELA -->
     <div id="modal-ocr-crop" class="modal-overlay">
         <div class="modal-content">
             <h3>📐 Ajuste o Recorte</h3>
@@ -450,6 +460,7 @@
         </div>
     </div>
 
+    <!-- MODAL 2: CONFERÊNCIA DE CARTELA -->
     <div id="modal-ocr-review" class="modal-overlay">
         <div class="modal-content">
             <h3>🔍 Conferência</h3>
@@ -471,10 +482,13 @@
         </div>
     </div>
 
+    <!-- SCRIPTS EXTERNOS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.13/cropper.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <!-- SCRIPTS LOCAIS -->
     <script src="../shared/js/state.js"></script>
     <script src="js/admin.js"></script>
 </body>
